@@ -3,13 +3,13 @@
 import { useMemo, useState } from 'react'
 
 const countries = [
-  { name: 'India', code: 'IN', flag: '🇮🇳', debt: '$620.7B', change: '+5.8%' },
-  { name: 'United States', code: 'US', flag: '🇺🇸', debt: '$36.2T', change: '+4.2%' },
-  { name: 'China', code: 'CN', flag: '🇨🇳', debt: '$16.1T', change: '+3.6%' },
-  { name: 'Japan', code: 'JP', flag: '🇯🇵', debt: '$13.0T', change: '+1.9%' },
-  { name: 'Germany', code: 'DE', flag: '🇩🇪', debt: '$5.0T', change: '+2.8%' },
-  { name: 'United Kingdom', code: 'GB', flag: '🇬🇧', debt: '$4.7T', change: '+3.1%' },
-  { name: 'France', code: 'FR', flag: '🇫🇷', debt: '$3.9T', change: '+2.4%' },
+  { name: 'India', code: 'IN', flag: '🇮🇳', debt: '$620.7B', change: '+5.8%', coverage: 'Full', source: 'World Bank', year: 2023 },
+  { name: 'United States', code: 'US', flag: '🇺🇸', debt: '$36.2T', change: '+4.2%', coverage: 'Full', source: 'World Bank', year: 2024 },
+  { name: 'China', code: 'CN', flag: '🇨🇳', debt: '$16.1T', change: '+3.6%', coverage: 'Full', source: 'World Bank', year: 2023 },
+  { name: 'Japan', code: 'JP', flag: '🇯🇵', debt: '$13.0T', change: '+1.9%', coverage: 'Full', source: 'World Bank', year: 2023 },
+  { name: 'Germany', code: 'DE', flag: '🇩🇪', debt: '$5.0T', change: '+2.8%', coverage: 'Partial', source: 'World Bank + IMF', year: 2023 },
+  { name: 'United Kingdom', code: 'GB', flag: '🇬🇧', debt: '$4.7T', change: '+3.1%', coverage: 'Full', source: 'World Bank', year: 2023 },
+  { name: 'France', code: 'FR', flag: '🇫🇷', debt: '$3.9T', change: '+2.4%', coverage: 'Partial', source: 'IMF', year: 2023 },
 ]
 
 const rankings = countries.slice(1, 6)
@@ -33,10 +33,19 @@ function SearchIcon() {
 
 export default function HomePage() {
   const [query, setQuery] = useState('')
+  const [availability, setAvailability] = useState<'all' | 'full' | 'partial' | 'verified'>('all')
+
   const filtered = useMemo(() => {
-    if (!query.trim()) return countries.slice(0, 5)
-    return countries.filter((country) => country.name.toLowerCase().includes(query.toLowerCase()))
-  }, [query])
+    const normalized = query.trim().toLowerCase()
+    return countries.filter((country) => {
+      const matchesQuery = !normalized || country.name.toLowerCase().includes(normalized)
+      const matchesAvailability = availability === 'all'
+        || (availability === 'full' && country.coverage === 'Full')
+        || (availability === 'partial' && country.coverage === 'Partial')
+        || (availability === 'verified' && country.year >= 2024)
+      return matchesQuery && matchesAvailability
+    })
+  }, [query, availability])
 
   return (
     <main className="site-shell">
@@ -83,14 +92,14 @@ export default function HomePage() {
             <kbd>⌘ K</kbd>
           </div>
 
-          {query && (
+          {(query || availability !== 'all') && (
             <div className="search-results" role="listbox" aria-label="Country search results">
               {filtered.length > 0 ? filtered.map((country) => (
                 <button key={country.code} type="button" className="result-row">
-                  <span className="result-left"><span className="result-flag">{country.flag}</span>{country.name}</span>
-                  <span className="result-debt">{country.debt}</span>
+                  <span className="result-left"><span className="result-flag">{country.flag}</span><span>{country.name}</span></span>
+                  <span className="result-meta"><span className={`availability-dot availability-${country.coverage.toLowerCase()}`} />{country.coverage} · {country.year}</span>
                 </button>
-              )) : <div className="empty-search">No country found. Try another name.</div>}
+              )) : <div className="empty-search">No country matches this availability filter.</div>}
             </div>
           )}
 
@@ -192,6 +201,37 @@ export default function HomePage() {
             <button type="button" className="ai-link">Explain in हिन्दी <ArrowUpRight /></button>
           </div>
         </article>
+      </section>
+
+      <section className="panel availability-panel" id="availability">
+        <div className="section-heading">
+          <div>
+            <span className="section-kicker">DATA QUALITY</span>
+            <h2>Data availability</h2>
+            <p className="panel-subtitle">Filter countries by how usable and current their debt data is.</p>
+          </div>
+          <span className="coverage-count">{filtered.length} of {countries.length} shown</span>
+        </div>
+
+        <div className="availability-filter" role="group" aria-label="Data availability filter">
+          <button type="button" className={availability === 'all' ? 'filter-chip active' : 'filter-chip'} onClick={() => setAvailability('all')}>All countries</button>
+          <button type="button" className={availability === 'full' ? 'filter-chip active' : 'filter-chip'} onClick={() => setAvailability('full')}>Full coverage</button>
+          <button type="button" className={availability === 'partial' ? 'filter-chip active' : 'filter-chip'} onClick={() => setAvailability('partial')}>Partial coverage</button>
+          <button type="button" className={availability === 'verified' ? 'filter-chip active' : 'filter-chip'} onClick={() => setAvailability('verified')}>2024+ data</button>
+        </div>
+
+        <div className="availability-table-wrap">
+          <div className="availability-head"><span>Country</span><span>Coverage</span><span>Source</span><span>Latest year</span></div>
+          {filtered.map((country) => (
+            <div className="availability-row" key={country.code}>
+              <span className="availability-country"><span className="result-flag">{country.flag}</span><strong>{country.name}</strong></span>
+              <span><span className={`coverage-badge coverage-${country.coverage.toLowerCase()}`}><i />{country.coverage}</span></span>
+              <span className="source-name">{country.source}</span>
+              <strong>{country.year}</strong>
+            </div>
+          ))}
+          {filtered.length === 0 && <div className="availability-empty">No countries match the selected filter.</div>}
+        </div>
       </section>
 
       <section className="panel rankings-panel" id="rankings">
