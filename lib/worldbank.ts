@@ -1,3 +1,5 @@
+import { allCountries } from './countries'
+
 const WORLD_BANK_API = 'https://api.worldbank.org/v2'
 
 const EXTERNAL_DEBT_INDICATOR = 'DT.DOD.DECT.CD'
@@ -28,6 +30,13 @@ export type CompareObservation = {
   gdp: number | null
   debtToGdp: number | null
   yoyChange: number | null
+}
+
+export type DebtRanking = {
+  countryCode: string
+  countryName: string
+  year: number
+  value: number
 }
 
 async function getIndicatorData(
@@ -115,6 +124,7 @@ export async function hasExternalDebtData(
   countryCode: string
 ): Promise<boolean> {
   const history = await getExternalDebt(countryCode)
+
   return history.length > 0
 }
 
@@ -148,7 +158,8 @@ export async function getCompareData(
     const debt = item.value
     const gdp = gdpByYear.get(item.year) ?? null
 
-    const previous = index > 0 ? sortedDebt[index - 1] : null
+    const previous =
+      index > 0 ? sortedDebt[index - 1] : null
 
     const yoyChange =
       previous &&
@@ -173,4 +184,107 @@ export async function getCompareData(
       yoyChange,
     }
   })
+}
+
+export async function getExternalDebtRankings(
+  limit = 25
+): Promise<DebtRanking[]> {
+  const perPage = 1000
+  let page = 1
+  let totalPages = 1
+
+  const latestByCountry = new Map<string, DebtRanking>()
+
+  // Create a fast lookup of actual countries.
+  // This automatically excludes World Bank aggregates,
+  // income groups, regions, and lending groups.
+  const validCountryCodes = new Set(
+    allCountries.map((country) =>
+      country.code3.toUpperCase()
+    )
+  )
+
+  while (page <= totalPages) {
+    const url =
+      `${WORLD_BANK_API}/country/all/indicator/${EXTERNAL_DEBT_INDICATOR}` +
+      `?format=json&per_page=${perPage}&page=${page}`
+
+    const response = await fetch(url, {
+      next: { revalidate: 3600 },
+    })
+
+    if (!response.ok) {
+      throw new Error(
+        `World Bank rankings request failed: ${response.status} ${response.statusText}`
+      )
+    }
+
+    const data = await response.json()
+
+    if (!Array.isArray(data) || !Array.isArray(data[1])) {
+      throw new Error(
+        'Unexpected World Bank rankings response.'
+      )
+    }
+
+    const metadata = data[0] as {
+      pages?: number
+      total?: number
+    }
+
+    totalPages = Number(metadata.pages ?? 1)
+
+    for (const item of data[1]) {
+      const countryCode =
+        item.countryiso3code ?? ''
+
+      const countryName =
+        item.country?.value ?? ''
+
+      const year = Number(item.date)
+      const value = item.value
+
+      // Keep only actual countries from our canonical
+      // country dataset.
+      if (
+        !validCountryCodes.has(
+          countryCode.toUpperCase()
+        )
+      ) {
+        continue
+      }
+
+      if (
+        countryName.length === 0 ||
+        !Number.isFinite(year) ||
+        value === null ||
+        !Number.isFinite(value) ||
+        value < 0
+      ) {
+        continue
+      }
+
+      const normalizedCode =
+        countryCode.toUpperCase()
+
+      const existing =
+        latestByCountry.get(normalizedCode)
+
+      // Keep the latest available observation.
+      if (!existing || year > existing.year) {
+        latestByCountry.set(normalizedCode, {
+          countryCode: normalizedCode,
+          countryName,
+          year,
+          value,
+        })
+      }
+    }
+
+    page += 1
+  }
+
+  return Array.from(latestByCountry.values())
+    .sort((a, b) => b.value - a.value)
+    .slice(0, limit)
 }
