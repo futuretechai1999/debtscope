@@ -112,7 +112,7 @@ export default function HomePage() {
           <a href="/compare">Compare</a>
           <a href="/rankings">Rankings</a>
           <a href="#insights">Insights</a>
-          <a href="#map">World Map</a>
+          <a href="/map">World Map</a>
         </div>
 
         <button
