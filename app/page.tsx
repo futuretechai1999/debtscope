@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import DebtScopeLogo from '../components/DebtScopeLogo'
 
 type Language = 'en' | 'hi'
 
@@ -285,41 +286,18 @@ export default function HomePage() {
       <div className="ambient ambient-one" />
       <div className="ambient ambient-two" />
 
-      <nav className="nav-wrap">
-        <a
-          href="#top"
-          className="brand"
-          aria-label="DebtScope home"
-        >
-          <span className="brand-mark">
-            <span />
-          </span>
-
-          <span>
-            Debt<span>Scope</span>
-          </span>
-        </a>
-
-        <div className="nav-links">
-          <a href="#countries">{t.countries}</a>
-          <a href="/compare">{t.compare}</a>
-          <a href="/rankings">{t.rankings}</a>
-          <a href="#insights">{t.insights}</a>
-          <a href="/map">{t.worldMap}</a>
-        </div>
-
+      {/* Language Switch Bar */}
+      <div style={{ width: 'min(1180px, calc(100% - 40px))', margin: '14px auto 0', display: 'flex', justifyContent: 'flex-end' }}>
         <button
           className="language-btn"
           type="button"
           aria-label="Language selector"
-          onClick={() =>
-            setLanguage(language === 'en' ? 'hi' : 'en')
-          }
+          onClick={() => setLanguage(language === 'en' ? 'hi' : 'en')}
         >
           <span
             style={{
               fontWeight: language === 'en' ? 700 : 400,
-              color: language === 'en' ? '#FFFFFF' : '#9FB3C8',
+              color: language === 'en' ? 'var(--text)' : 'var(--muted)',
             }}
           >
             EN
@@ -330,24 +308,24 @@ export default function HomePage() {
           <span
             style={{
               fontWeight: language === 'hi' ? 700 : 400,
-              color: language === 'hi' ? '#FFFFFF' : '#9FB3C8',
+              color: language === 'hi' ? 'var(--text)' : 'var(--muted)',
             }}
           >
             हिन्दी
           </span>
         </button>
-      </nav>
+      </div>
 
-      <section className="hero" id="top">
+      <section className="hero" id="top" style={{ paddingTop: '20px' }}>
         <div className="hero-copy">
           <div className="eyebrow">
             <span className="live-dot" /> {t.eyebrow}
           </div>
 
-          <h1>
+          <h1 style={{ color: 'var(--text)' }}>
             {t.heroTitle1}
             <br />
-            <span>{t.heroTitle2}</span>
+            <span style={{ color: 'var(--muted)' }}>{t.heroTitle2}</span>
           </h1>
 
           <p>{t.heroDescription}</p>
@@ -702,7 +680,7 @@ export default function HomePage() {
             <div className="availability-empty">
               {language === 'en'
                 ? 'No countries match the selected filter.'
-                : 'चयनित फ़िल्टर के अनुसार कोई देश नहीं मिला।'}
+                : 'इस फ़िल्टर के लिए कोई देश नहीं मिला।'}
             </div>
           )}
         </div>
@@ -822,15 +800,7 @@ export default function HomePage() {
       </section>
 
       <footer className="footer">
-        <div className="brand footer-brand">
-          <span className="brand-mark">
-            <span />
-          </span>
-
-          <span>
-            Debt<span>Scope</span>
-          </span>
-        </div>
+        <DebtScopeLogo />
 
         <div className="footer-note">{t.footerNote}</div>
 

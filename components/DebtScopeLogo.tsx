@@ -7,18 +7,18 @@ export default function DebtScopeLogo() {
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '12px',
+        gap: '10px',
         textDecoration: 'none',
       }}
     >
       <svg
-        width="34"
-        height="34"
+        width="32"
+        height="32"
         viewBox="0 0 34 34"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         style={{
-          filter: 'drop-shadow(0 4px 10px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 12px rgba(249, 115, 22, 0.25))',
+          filter: 'drop-shadow(0 2px 8px rgba(249, 115, 22, 0.35))',
         }}
       >
         <defs>
@@ -72,19 +72,18 @@ export default function DebtScopeLogo() {
 
       <span
         style={{
-          fontSize: '22px',
+          fontSize: '21px',
           fontWeight: 900,
           letterSpacing: '-0.03em',
-          color: '#ffffff',
+          color: 'var(--text)',
         }}
       >
         Debt
         <span
           style={{
-            background: 'linear-gradient(135deg, #f97316 0%, #eab308 50%, #38bdf8 100%)',
+            background: 'linear-gradient(135deg, #f97316 0%, #eab308 50%, #06b6d4 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
-            filter: 'drop-shadow(0 2px 8px rgba(249, 115, 22, 0.3))',
           }}
         >
           Scope
