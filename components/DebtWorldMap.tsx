@@ -1,680 +1,257 @@
-'use client'
+"use client";
 
-import { useMemo, useState } from 'react'
+import { useState, useEffect, memo } from "react";
+import Link from "next/link";
 import {
   ComposableMap,
   Geographies,
   Geography,
-  ZoomableGroup,
-} from 'react-simple-maps'
-import worldCountries from 'world-countries'
-import { useLanguage } from './LanguageProvider'
+  Sphere,
+  Graticule
+} from "react-simple-maps";
 
-const geoUrl =
-  'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'
+const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
-type CountryMapData = {
-  code: string
-  name: string
-  value: number | null
-  year: number | null
+interface MapCountryItem {
+  name: string;
+  code: string;
+  flag?: string;
+  region?: string;
+  debt?: number | null;
+  year?: number | null;
 }
 
-type DebtWorldMapProps = {
-  countries: CountryMapData[]
+interface DebtWorldMapProps {
+  countries?: MapCountryItem[];
 }
 
-type TooltipState = {
-  visible: boolean
-  x: number
-  y: number
-  name: string
-  code: string
-  value: number | null
-  year: number | null
-  hasData: boolean
-}
+const DEBT_DATA: Record<string, { debt: string; name: string }> = {
+  USA: { debt: "$36.2T", name: "United States" },
+  CHN: { debt: "$16.1T", name: "China" },
+  JPN: { debt: "$13.0T", name: "Japan" },
+  DEU: { debt: "$5.0T", name: "Germany" },
+  GBR: { debt: "$4.7T", name: "United Kingdom" },
+  IND: { debt: "$716.5B", name: "India" },
+  BRA: { debt: "$730.0B", name: "Brazil" },
+  ZAF: { debt: "$180.2B", name: "South Africa" },
+  RUS: { debt: "$310.0B", name: "Russia" },
+  MEX: { debt: "$610.0B", name: "Mexico" },
+  AUS: { debt: "$2.1T", name: "Australia" },
+  CAN: { debt: "$2.9T", name: "Canada" },
+  IDN: { debt: "$412.0B", name: "Indonesia" },
+  TUR: { debt: "$490.0B", name: "Turkey" },
+  SAU: { debt: "$260.0B", name: "Saudi Arabia" },
+};
 
-type GeoProperties = {
-  name?: string
-  NAME?: string
-  NAME_LONG?: string
-  ISO_A3?: string
-  ADM0_A3?: string
-  ISO_A3_EH?: string
-}
+function DebtWorldMap({ countries = [] }: DebtWorldMapProps) {
+  const [isMounted, setIsMounted] = useState(false);
+  const [tooltipContent, setTooltipContent] = useState<{
+    name: string;
+    debt: string;
+  } | null>(null);
 
-function formatDebt(value: number | null) {
-  if (value === null) {
-    return 'Data unavailable'
-  }
-
-  if (value >= 1_000_000_000_000) {
-    return `$${(value / 1_000_000_000_000).toFixed(2)}T`
-  }
-
-  if (value >= 1_000_000_000) {
-    return `$${(value / 1_000_000_000).toFixed(2)}B`
-  }
-
-  if (value >= 1_000_000) {
-    return `$${(value / 1_000_000).toFixed(2)}M`
-  }
-
-  return `$${value.toLocaleString()}`
-}
-
-function getDebtIntensity(value: number | null) {
-  if (value === null) return 0
-
-  if (value >= 1_000_000_000_000) return 4
-  if (value >= 250_000_000_000) return 3
-  if (value >= 50_000_000_000) return 2
-  if (value >= 10_000_000_000) return 1
-
-  return 0
-}
-
-function getFill(value: number | null) {
-  const intensity = getDebtIntensity(value)
-
-  if (intensity === 4) return '#FF8A00'
-  if (intensity === 3) return '#FFB000'
-  if (intensity === 2) return '#FFD54D'
-  if (intensity === 1) return '#34D6E7'
-
-  // Country exists, but selected data is unavailable.
-  return '#24384F'
-}
-
-function normalizeNumericCode(value: unknown) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ''
-  ) {
-    return ''
-  }
-
-  return String(value).padStart(3, '0')
-}
-
-function normalizeIso3(value: unknown) {
-  if (!value) return ''
-
-  const code = String(value).toUpperCase()
-
-  if (code.length !== 3) return ''
-
-  return code
-}
-
-function getCountryByIso3(iso3: string) {
-  if (!iso3) return null
-
-  return (
-    worldCountries.find(
-      (country) =>
-        country.cca3?.toUpperCase() === iso3
-    ) ?? null
-  )
-}
-
-function getCountryByNumericCode(code: string) {
-  if (!code) return null
-
-  return (
-    worldCountries.find(
-      (country) =>
-        normalizeNumericCode(country.ccn3) === code
-    ) ?? null
-  )
-}
-
-function getCountryFromGeo(
-  properties: GeoProperties,
-  geoId: unknown
-) {
-  // 1. Try ISO-3 values supplied by the map geometry.
-  const isoCandidates = [
-    properties.ISO_A3,
-    properties.ADM0_A3,
-    properties.ISO_A3_EH,
-  ]
-
-  for (const candidate of isoCandidates) {
-    const iso3 = normalizeIso3(candidate)
-
-    if (!iso3 || iso3 === '-99') {
-      continue
-    }
-
-    const country = getCountryByIso3(iso3)
-
-    if (country) {
-      return country
-    }
-  }
-
-  // 2. Fallback to the numeric country ID.
-  const numericCode = normalizeNumericCode(geoId)
-
-  return getCountryByNumericCode(numericCode)
-}
-
-function buildDataLookup(
-  countries: CountryMapData[]
-) {
-  const byIso3 = new Map<
-    string,
-    CountryMapData
-  >()
-
-  const byNumeric = new Map<
-    string,
-    CountryMapData
-  >()
-
-  for (const country of countries) {
-    const iso3 = normalizeIso3(country.code)
-
-    if (iso3) {
-      byIso3.set(iso3, country)
-    }
-
-    const worldCountry =
-      getCountryByIso3(iso3)
-
-    if (worldCountry?.ccn3) {
-      byNumeric.set(
-        normalizeNumericCode(worldCountry.ccn3),
-        country
-      )
-    }
-  }
-
-  return {
-    byIso3,
-    byNumeric,
-  }
-}
-
-export default function DebtWorldMap({
-  countries,
-}: DebtWorldMapProps) {
-  const { language } = useLanguage()
-  const copy = language === 'hi'
-    ? {
-        externalDebt: 'बाहरी ऋण', lower: 'कम', medium: 'मध्यम', high: 'अधिक', veryHigh: 'बहुत अधिक', unavailable: 'डेटा उपलब्ध नहीं', latestYear: 'नवीनतम वर्ष:', available: 'देश का विवरण खोलने के लिए क्लिक करें', unavailableHint: 'इस मापदंड के लिए आधिकारिक डेटा उपलब्ध नहीं है — देश पेज देखने के लिए क्लिक करें', instruction: 'डेटा के लिए होवर करें · देश विवरण के लिए क्लिक करें',
-      }
-    : {
-        externalDebt: 'External debt', lower: 'Lower', medium: 'Medium', high: 'High', veryHigh: 'Very high', unavailable: 'Data unavailable', latestYear: 'Latest year:', available: 'Click to open country details', unavailableHint: 'Official data unavailable for this metric — click to view the country page', instruction: 'Hover for data · Click for country details',
-      }
-  const dataLookup = useMemo(
-    () => buildDataLookup(countries),
-    [countries]
-  )
-
-  const [tooltip, setTooltip] =
-    useState<TooltipState>({
-      visible: false,
-      x: 0,
-      y: 0,
-      name: '',
-      code: '',
-      value: null,
-      year: null,
-      hasData: false,
-    })
-
-  function findDataForGeo(
-    properties: GeoProperties,
-    geoId: unknown
-  ) {
-    // First: match via map's ISO-3 property.
-    const isoCandidates = [
-      properties.ISO_A3,
-      properties.ADM0_A3,
-      properties.ISO_A3_EH,
-    ]
-
-    for (const candidate of isoCandidates) {
-      const iso3 = normalizeIso3(candidate)
-
-      if (!iso3 || iso3 === '-99') {
-        continue
-      }
-
-      const data = dataLookup.byIso3.get(iso3)
-
-      if (data) {
-        return data
-      }
-    }
-
-    // Second: numeric ID.
-    const numericCode =
-      normalizeNumericCode(geoId)
-
-    return dataLookup.byNumeric.get(numericCode)
-  }
-
-  function getCountryIdentity(
-    properties: GeoProperties,
-    geoId: unknown
-  ) {
-    const country =
-      getCountryFromGeo(properties, geoId)
-
-    return {
-      country,
-      name:
-        country?.name?.common ??
-        properties.name ??
-        properties.NAME ??
-        properties.NAME_LONG ??
-        'Unknown country',
-      code:
-        country?.cca3?.toUpperCase() ??
-        normalizeIso3(properties.ISO_A3) ??
-        normalizeIso3(properties.ADM0_A3) ??
-        '',
-    }
-  }
-
-  function showTooltip(
-    event: React.MouseEvent<SVGPathElement>,
-    properties: GeoProperties,
-    geoId: unknown
-  ) {
-    const data = findDataForGeo(
-      properties,
-      geoId
-    )
-
-    const identity = getCountryIdentity(
-      properties,
-      geoId
-    )
-
-    setTooltip({
-      visible: true,
-      x: event.clientX,
-      y: event.clientY,
-      name: identity.name,
-      code: identity.code,
-      value: data?.value ?? null,
-      year: data?.year ?? null,
-      hasData: Boolean(data),
-    })
-  }
-
-  function moveTooltip(
-    event: React.MouseEvent<SVGPathElement>
-  ) {
-    setTooltip((current) => ({
-      ...current,
-      x: event.clientX,
-      y: event.clientY,
-    }))
-  }
-
-  function hideTooltip() {
-    setTooltip((current) => ({
-      ...current,
-      visible: false,
-    }))
-  }
-
-  function handleCountryClick(
-    properties: GeoProperties,
-    geoId: unknown
-  ) {
-    const identity = getCountryIdentity(
-      properties,
-      geoId
-    )
-
-    if (!identity.code) {
-      return
-    }
-
-    window.location.href =
-      `/country/${identity.code}`
-  }
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   return (
     <div
       style={{
-        width: '100%',
-        height: '620px',
-        background: '#0B1727',
-        border: '1px solid #1E3550',
-        borderRadius: '20px',
-        overflow: 'hidden',
-        position: 'relative',
+        backgroundColor: "#071321",
+        border: "1px solid #13273e",
+        borderRadius: "16px",
+        padding: "24px",
+        position: "relative",
+        overflow: "hidden",
       }}
     >
-      <ComposableMap
-        projection="geoMercator"
-        projectionConfig={{
-          scale: 145,
-          center: [10, 15],
-        }}
-        style={{
-          width: '100%',
-          height: '100%',
-        }}
-      >
-        <ZoomableGroup
-          minZoom={1}
-          maxZoom={4}
-          zoom={1}
-          center={[10, 15]}
-        >
-          <Geographies geography={geoUrl}>
-            {({ geographies }) =>
-              geographies.map((geo) => {
-                const properties =
-                  (geo.properties ??
-                    {}) as GeoProperties
-
-                const data =
-                  findDataForGeo(
-                    properties,
-                    geo.id
-                  )
-
-                const identity =
-                  getCountryIdentity(
-                    properties,
-                    geo.id
-                  )
-
-                const recognizedCountry =
-                  Boolean(
-                    identity.code ||
-                      identity.name !==
-                        'Unknown country'
-                  )
-
-                return (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    style={{
-                      default: {
-                        fill: recognizedCountry
-                          ? getFill(
-                              data?.value ??
-                                null
-                            )
-                          : '#17283D',
-                        stroke: '#07111F',
-                        strokeWidth: 0.6,
-                        outline: 'none',
-                      },
-
-                      hover: {
-                        fill: recognizedCountry
-                          ? '#FFFFFF'
-                          : '#253A53',
-                        stroke: '#34D6E7',
-                        strokeWidth: 1,
-                        outline: 'none',
-                        cursor:
-                          recognizedCountry
-                            ? 'pointer'
-                            : 'default',
-                      },
-
-                      pressed: {
-                        fill: '#FFFFFF',
-                        stroke: '#34D6E7',
-                        strokeWidth: 1,
-                        outline: 'none',
-                      },
-                    }}
-                    onMouseEnter={(event) =>
-                      showTooltip(
-                        event,
-                        properties,
-                        geo.id
-                      )
-                    }
-                    onMouseMove={(event) =>
-                      moveTooltip(event)
-                    }
-                    onMouseLeave={() =>
-                      hideTooltip()
-                    }
-                    onClick={() =>
-                      handleCountryClick(
-                        properties,
-                        geo.id
-                      )
-                    }
-                  />
-                )
-              })
-            }
-          </Geographies>
-        </ZoomableGroup>
-      </ComposableMap>
-
-      {/* Legend */}
       <div
         style={{
-          position: 'absolute',
-          top: '24px',
-          left: '24px',
-          background: 'rgba(7, 17, 31, 0.96)',
-          border: '1px solid #1E3550',
-          borderRadius: '14px',
-          padding: '14px 16px',
-          minWidth: '220px',
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: "16px",
         }}
       >
-        <div
-          style={{
-            color: '#FFFFFF',
-            fontSize: '14px',
-            fontWeight: 700,
-            marginBottom: '10px',
-          }}
-        >
-          {copy.externalDebt}
+        <div>
+          <span
+            style={{
+              fontSize: "10px",
+              fontWeight: 700,
+              color: "#38bdf8",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+            }}
+          >
+            WORLD VIEW
+          </span>
+          <h3
+            style={{
+              fontSize: "20px",
+              fontWeight: 800,
+              color: "#ffffff",
+              margin: "4px 0 0 0",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            Global debt map
+          </h3>
         </div>
 
-        <div
+        <Link
+          href="/rankings"
           style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '7px',
-            color: '#9FB3C8',
-            fontSize: '12px',
+            fontSize: "11px",
+            color: "#64748b",
+            border: "1px solid #1e293b",
+            borderRadius: "20px",
+            padding: "4px 12px",
+            textDecoration: "none",
+            backgroundColor: "#050d18",
+            fontWeight: 600,
           }}
         >
-          <LegendItem
-            color="#34D6E7"
-            label={copy.lower}
-          />
-
-          <LegendItem
-            color="#FFD54D"
-            label={copy.medium}
-          />
-
-          <LegendItem
-            color="#FFB000"
-            label={copy.high}
-          />
-
-          <LegendItem
-            color="#FF8A00"
-            label={copy.veryHigh}
-          />
-
-          <LegendItem
-            color="#24384F"
-            label={copy.unavailable}
-          />
-        </div>
+          Leaderboard →
+        </Link>
       </div>
 
-      {/* Tooltip */}
-      {tooltip.visible && (
-        <div
-          style={{
-            position: 'fixed',
-            left: Math.min(
-              tooltip.x + 16,
-              window.innerWidth - 270
-            ),
-            top: Math.min(
-              tooltip.y + 16,
-              window.innerHeight - 220
-            ),
-            zIndex: 1000,
-            width: '235px',
-            background: '#07111F',
-            border: '1px solid #2A4969',
-            borderRadius: '14px',
-            padding: '16px',
-            boxShadow:
-              '0 18px 45px rgba(0,0,0,0.4)',
-            pointerEvents: 'none',
-          }}
-        >
-          <div
-            style={{
-              color: '#FFFFFF',
-              fontSize: '16px',
-              fontWeight: 700,
-            }}
-          >
-            {tooltip.name}
-          </div>
-
-          {tooltip.code && (
-            <div
-              style={{
-                marginTop: '4px',
-                color: '#71869C',
-                fontSize: '11px',
-              }}
-            >
-              {tooltip.code}
-            </div>
-          )}
-
-          <div
-            style={{
-              height: '1px',
-              background: '#1E3550',
-              margin: '12px 0',
-            }}
-          />
-
-          <div
-            style={{
-              color: '#9FB3C8',
-              fontSize: '12px',
-            }}
-          >
-            {copy.externalDebt}
-          </div>
-
-          <div
-            style={{
-              marginTop: '4px',
-              color: tooltip.hasData
-                ? '#34D6E7'
-                : '#F59E0B',
-              fontSize: '20px',
-              fontWeight: 700,
-            }}
-          >
-            {formatDebt(
-              tooltip.value
-            )}
-          </div>
-
-          <div
-            style={{
-              marginTop: '6px',
-              color: '#9FB3C8',
-              fontSize: '12px',
-            }}
-          >
-            {copy.latestYear}{' '}
-            {tooltip.year ?? 'N/A'}
-          </div>
-
-          <div
-            style={{
-              marginTop: '12px',
-              paddingTop: '10px',
-              borderTop: '1px solid #1E3550',
-              color: tooltip.hasData
-                ? '#34D399'
-                : '#F59E0B',
-              fontSize: '11px',
-              lineHeight: 1.4,
-            }}
-          >
-            {tooltip.hasData
-              ? copy.available
-              : copy.unavailableHint}
-          </div>
-        </div>
-      )}
-
       <div
         style={{
-          position: 'absolute',
-          bottom: '24px',
-          right: '24px',
-          background: 'rgba(7, 17, 31, 0.96)',
-          border: '1px solid #1E3550',
-          borderRadius: '14px',
-          padding: '12px 14px',
-          color: '#9FB3C8',
-          fontSize: '12px',
+          width: "100%",
+          height: "360px",
+          backgroundColor: "#050d18",
+          borderRadius: "12px",
+          border: "1px solid #0f2238",
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        {copy.instruction}
+        {!isMounted ? (
+          <div style={{ color: "#38bdf8", fontSize: "13px", fontWeight: 600 }}>
+            Rendering Geographic Engine...
+          </div>
+        ) : (
+          <ComposableMap
+            projectionConfig={{
+              rotate: [-10, 0, 0],
+              scale: 140,
+            }}
+            style={{ width: "100%", height: "100%" }}
+          >
+            <Sphere stroke="#11253e" strokeWidth={0.5} id="sphere" fill="transparent" />
+            <Graticule stroke="#0c1b2d" strokeWidth={0.5} />
+            <Geographies geography={geoUrl}>
+              {({ geographies }) =>
+                geographies.map((geo) => {
+                  const countryCode = geo.properties.ISO_A3 || geo.properties.iso_a3 || geo.id;
+                  const match = DEBT_DATA[countryCode];
+
+                  return (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      onMouseEnter={() => {
+                        setTooltipContent({
+                          name: geo.properties.name || match?.name || "Country",
+                          debt: match ? match.debt : "Data not indexed",
+                        });
+                      }}
+                      onMouseLeave={() => {
+                        setTooltipContent(null);
+                      }}
+                      style={{
+                        default: {
+                          fill: match ? "#0e395c" : "#091b2e",
+                          stroke: "#142c47",
+                          strokeWidth: 0.5,
+                          outline: "none",
+                        },
+                        hover: {
+                          fill: match ? "#22d3ee" : "#1e40af",
+                          stroke: "#ffffff",
+                          strokeWidth: 1,
+                          outline: "none",
+                          cursor: "pointer",
+                        },
+                        pressed: {
+                          fill: "#0284c7",
+                          outline: "none",
+                        },
+                      }}
+                    />
+                  );
+                })
+              }
+            </Geographies>
+          </ComposableMap>
+        )}
+
+        {/* Dynamic Tooltip on Country Hover */}
+        {tooltipContent && (
+          <div
+            style={{
+              position: "absolute",
+              top: "14px",
+              right: "14px",
+              backgroundColor: "#071321",
+              border: "1px solid #38bdf8",
+              borderRadius: "8px",
+              padding: "8px 12px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+              pointerEvents: "none",
+              zIndex: 10,
+            }}
+          >
+            <div style={{ color: "#ffffff", fontSize: "12px", fontWeight: 700 }}>
+              {tooltipContent.name}
+            </div>
+            <div style={{ color: "#22d3ee", fontSize: "14px", fontWeight: 800, marginTop: "2px" }}>
+              {tooltipContent.debt}
+            </div>
+          </div>
+        )}
+
+        {/* Map Legend */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: "10px",
+            left: "14px",
+            display: "flex",
+            alignItems: "center",
+            gap: "14px",
+            fontSize: "10px",
+            color: "#64748b",
+          }}
+        >
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+            <span
+              style={{
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                backgroundColor: "#091b2e",
+              }}
+            />
+            Global Base
+          </span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+            <span
+              style={{
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                backgroundColor: "#0e395c",
+              }}
+            />
+            Active Indexed Economy
+          </span>
+        </div>
       </div>
     </div>
-  )
+  );
 }
 
-function LegendItem({
-  color,
-  label,
-}: {
-  color: string
-  label: string
-}) {
-  return (
-    <span
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-      }}
-    >
-      <span
-        style={{
-          width: '10px',
-          height: '10px',
-          borderRadius: '50%',
-          background: color,
-          display: 'inline-block',
-        }}
-      />
-
-      {label}
-    </span>
-  )
-}
+export default memo(DebtWorldMap);

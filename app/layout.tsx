@@ -1,4 +1,5 @@
 import './globals.css'
+import Navbar from '../components/Navbar'
 import { LanguageProvider } from '../components/LanguageProvider'
 
 export const metadata = {
@@ -8,13 +9,16 @@ export const metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
     <html lang="en">
-      <body>
-        <LanguageProvider>{children}</LanguageProvider>
+      <body style={{ margin: 0, backgroundColor: '#070b14', color: '#ffffff' }}>
+        <LanguageProvider>
+          <Navbar />
+          {children}
+        </LanguageProvider>
       </body>
     </html>
   )
