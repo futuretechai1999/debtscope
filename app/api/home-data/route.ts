@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getCompareData, getExternalDebtRankings, GLOBAL_DEBT_MASTER } from '../../../lib/worldbank'
+import { getCompareData, getExternalDebtRankings, getLatestExternalDebt } from '../../../lib/worldbank'
 
 export async function GET() {
   try {
@@ -12,12 +12,14 @@ export async function GET() {
       0
     )
 
-    const indiaEntry = GLOBAL_DEBT_MASTER['IND']
+    // Live data for India fetch kar rahe hain
+    const latestIndiaData = await getLatestExternalDebt('IND')
+    
     const latestIndia = {
       code: 'IND',
-      debt: indiaEntry?.debt || 716500000000,
-      year: indiaEntry?.year || 2024,
-      yoyChange: '+4.2%',
+      debt: latestIndiaData?.value || 716500000000,
+      year: latestIndiaData ? parseInt(latestIndiaData.date) : 2024,
+      yoyChange: '+4.2%', // UI ke liye static rakha hai
       debtToGdp: '18.7%',
     }
 

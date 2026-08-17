@@ -1,19 +1,25 @@
 import Link from 'next/link'
 import FullWorldMap, { CountryMapData } from '../../components/FullWorldMap'
 import { allCountries } from '../../lib/countries'
-import { GLOBAL_DEBT_MASTER } from '../../lib/worldbank'
+import { getGlobalDebtData } from '../../lib/worldbank'
 
-export default function MapPage() {
+export default async function MapPage() {
+  // Live World Bank API se poori duniya ka data fetch kar rahe hain
+  const globalDebtData = await getGlobalDebtData()
+  
+  // Data ko aasani se dhoondhne ke liye ek Map (dictionary) bana rahe hain
+  const debtLookup = new Map(globalDebtData.map(d => [d.code, d]))
+
   const mapData: CountryMapData[] = allCountries.map((c) => {
     const code = c.code3.toUpperCase()
-    const master = GLOBAL_DEBT_MASTER[code]
+    const liveData = debtLookup.get(code)
 
     return {
       name: c.name,
       code,
       flag: c.flag || '🌐',
-      debt: master?.debt ?? null,
-      year: master?.year ?? null,
+      debt: liveData?.debt ?? null,
+      year: liveData?.year ?? null,
     }
   })
 
