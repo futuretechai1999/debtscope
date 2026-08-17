@@ -8,6 +8,7 @@ import {
   ZoomableGroup,
 } from 'react-simple-maps'
 import worldCountries from 'world-countries'
+import { useLanguage } from './LanguageProvider'
 
 const geoUrl =
   'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'
@@ -201,6 +202,14 @@ function buildDataLookup(
 export default function DebtWorldMap({
   countries,
 }: DebtWorldMapProps) {
+  const { language } = useLanguage()
+  const copy = language === 'hi'
+    ? {
+        externalDebt: 'बाहरी ऋण', lower: 'कम', medium: 'मध्यम', high: 'अधिक', veryHigh: 'बहुत अधिक', unavailable: 'डेटा उपलब्ध नहीं', latestYear: 'नवीनतम वर्ष:', available: 'देश का विवरण खोलने के लिए क्लिक करें', unavailableHint: 'इस मापदंड के लिए आधिकारिक डेटा उपलब्ध नहीं है — देश पेज देखने के लिए क्लिक करें', instruction: 'डेटा के लिए होवर करें · देश विवरण के लिए क्लिक करें',
+      }
+    : {
+        externalDebt: 'External debt', lower: 'Lower', medium: 'Medium', high: 'High', veryHigh: 'Very high', unavailable: 'Data unavailable', latestYear: 'Latest year:', available: 'Click to open country details', unavailableHint: 'Official data unavailable for this metric — click to view the country page', instruction: 'Hover for data · Click for country details',
+      }
   const dataLookup = useMemo(
     () => buildDataLookup(countries),
     [countries]
@@ -474,7 +483,7 @@ export default function DebtWorldMap({
             marginBottom: '10px',
           }}
         >
-          External debt
+          {copy.externalDebt}
         </div>
 
         <div
@@ -488,27 +497,27 @@ export default function DebtWorldMap({
         >
           <LegendItem
             color="#34D6E7"
-            label="Lower"
+            label={copy.lower}
           />
 
           <LegendItem
             color="#FFD54D"
-            label="Medium"
+            label={copy.medium}
           />
 
           <LegendItem
             color="#FFB000"
-            label="High"
+            label={copy.high}
           />
 
           <LegendItem
             color="#FF8A00"
-            label="Very high"
+            label={copy.veryHigh}
           />
 
           <LegendItem
             color="#24384F"
-            label="Data unavailable"
+            label={copy.unavailable}
           />
         </div>
       </div>
@@ -573,7 +582,7 @@ export default function DebtWorldMap({
               fontSize: '12px',
             }}
           >
-            External debt
+            {copy.externalDebt}
           </div>
 
           <div
@@ -598,7 +607,7 @@ export default function DebtWorldMap({
               fontSize: '12px',
             }}
           >
-            Latest year:{' '}
+            {copy.latestYear}{' '}
             {tooltip.year ?? 'N/A'}
           </div>
 
@@ -615,8 +624,8 @@ export default function DebtWorldMap({
             }}
           >
             {tooltip.hasData
-              ? 'Click to open country details'
-              : 'Official data unavailable for this metric — click to view the country page'}
+              ? copy.available
+              : copy.unavailableHint}
           </div>
         </div>
       )}
@@ -634,7 +643,7 @@ export default function DebtWorldMap({
           fontSize: '12px',
         }}
       >
-        Hover for data · Click for country details
+        {copy.instruction}
       </div>
     </div>
   )

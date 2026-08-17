@@ -1,4 +1,5 @@
 import './globals.css'
+import { LanguageProvider } from '../components/LanguageProvider'
 
 export const metadata = {
   title: 'DebtScope | Global Debt Intelligence',
@@ -12,7 +13,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   )
 }

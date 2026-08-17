@@ -287,4 +287,42 @@ export async function getExternalDebtRankings(
   return Array.from(latestByCountry.values())
     .sort((a, b) => b.value - a.value)
     .slice(0, limit)
+}export async function getHistoricalDebtData(countryCodes: string[]) {
+  if (!countryCodes || countryCodes.length === 0) return []
+
+  const codesStr = countryCodes.join(';').toLowerCase()
+  const currentYear = new Date().getFullYear()
+  const startYear = currentYear - 11
+  const endYear = currentYear - 1
+
+  const url = `https://api.worldbank.org/v2/country/${codesStr}/indicator/DT.DOD.DECT.CD?date=${startYear}:${endYear}&format=json&per_page=1000`
+
+  try {
+    const res = await fetch(url, { next: { revalidate: 86400 } })
+    const data = await res.json()
+
+    if (!data || !data[1]) return []
+
+    const chartDataMap = new Map<number, any>()
+
+    data[1].forEach((item: any) => {
+      if (item.value !== null) {
+        const year = parseInt(item.date)
+        const code = item.countryiso3code
+        const value = item.value
+
+        if (!chartDataMap.has(year)) {
+          chartDataMap.set(year, { year })
+        }
+
+        const yearData = chartDataMap.get(year)
+        yearData[code] = value
+      }
+    })
+
+    return Array.from(chartDataMap.values()).sort((a, b) => a.year - b.year)
+  } catch (error) {
+    console.error('Error fetching historical data:', error)
+    return []
+  }
 }

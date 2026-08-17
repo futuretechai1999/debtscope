@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { getExternalDebtRankings } from '../../lib/worldbank'
 import DebtWorldMap from '../../components/DebtWorldMap'
+import LanguageToggle from '../../components/LanguageToggle'
+import T from '../../components/LocalizedText'
 
 export default async function MapPage() {
   const rankings = await getExternalDebtRankings(300)
@@ -28,16 +30,12 @@ export default async function MapPage() {
           padding: '48px 0 80px',
         }}
       >
-        <Link
-          href="/"
-          style={{
-            color: '#34D6E7',
-            textDecoration: 'none',
-            fontSize: '15px',
-          }}
-        >
-          ← Back to home
-        </Link>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Link href="/" style={{ color: '#34D6E7', textDecoration: 'none', fontSize: '15px' }}>
+            ← <T en="Back to home" hi="होम पर वापस जाएँ" />
+          </Link>
+          <LanguageToggle style={languageToggleStyle} />
+        </div>
 
         <div style={{ marginTop: '38px' }}>
           <div
@@ -58,7 +56,7 @@ export default async function MapPage() {
               lineHeight: 1.1,
             }}
           >
-            Global external debt
+            <T en="Global external debt" hi="वैश्विक बाहरी ऋण" />
           </h1>
 
           <p
@@ -70,9 +68,7 @@ export default async function MapPage() {
               maxWidth: '780px',
             }}
           >
-            Explore the latest available external debt data
-            across countries. Hover over a country and click
-            to open its detailed DebtScope page.
+            <T en="Explore the latest available external debt data across countries. Hover over a country and click to open its detailed DebtScope page." hi="देशों में नवीनतम उपलब्ध बाहरी ऋण डेटा देखें। किसी देश पर होवर करें और उसका विस्तृत DebtScope पेज खोलने के लिए क्लिक करें।" />
           </p>
         </div>
 
@@ -98,27 +94,27 @@ export default async function MapPage() {
           }}
         >
           <InfoCard
-            title="Data source"
+            title={<T en="Data source" hi="डेटा स्रोत" />}
             value="World Bank"
-            description="External debt stocks, total"
+            description={<T en="External debt stocks, total" hi="कुल बाहरी ऋण स्टॉक" />}
           />
 
           <InfoCard
-            title="Countries"
+            title={<T en="Countries" hi="देश" />}
             value={String(mapCountries.length)}
-            description="Countries with usable observations"
+            description={<T en="Countries with usable observations" hi="उपयोगी रिकॉर्ड वाले देश" />}
           />
 
           <InfoCard
-            title="Metric"
-            value="External debt"
-            description="Current US dollars"
+            title={<T en="Metric" hi="मापदंड" />}
+            value={<T en="External debt" hi="बाहरी ऋण" />}
+            description={<T en="Current US dollars" hi="वर्तमान अमेरिकी डॉलर" />}
           />
 
           <InfoCard
-            title="Update"
-            value="Automatic"
-            description="Source data revalidated periodically"
+            title={<T en="Update" hi="अपडेट" />}
+            value={<T en="Automatic" hi="स्वचालित" />}
+            description={<T en="Source data revalidated periodically" hi="स्रोत डेटा का समय-समय पर सत्यापन होता है" />}
           />
         </div>
 
@@ -143,9 +139,9 @@ function InfoCard({
   value,
   description,
 }: {
-  title: string
-  value: string
-  description: string
+  title: React.ReactNode
+  value: React.ReactNode
+  description: React.ReactNode
 }) {
   return (
     <div
@@ -186,4 +182,8 @@ function InfoCard({
       </div>
     </div>
   )
+}
+
+const languageToggleStyle: React.CSSProperties = {
+  color: '#9FB3C8', background: 'transparent', border: '1px solid #1E3550', borderRadius: '999px', padding: '8px 12px', cursor: 'pointer',
 }

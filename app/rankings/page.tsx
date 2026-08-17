@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { getExternalDebtRankings } from '../../lib/worldbank'
 import { allCountries } from '../../lib/countries'
+import LanguageToggle from '../../components/LanguageToggle'
+import T from '../../components/LocalizedText'
 
 function formatDebt(value: number) {
   if (value >= 1_000_000_000_000) {
@@ -54,16 +56,12 @@ export default async function RankingsPage() {
           padding: '48px 0 80px',
         }}
       >
-        <Link
-          href="/"
-          style={{
-            color: '#34D6E7',
-            textDecoration: 'none',
-            fontSize: '15px',
-          }}
-        >
-          ← Back to home
-        </Link>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Link href="/" style={{ color: '#34D6E7', textDecoration: 'none', fontSize: '15px' }}>
+            ← <T en="Back to home" hi="होम पर वापस जाएँ" />
+          </Link>
+          <LanguageToggle style={languageToggleStyle} />
+        </div>
 
         <div style={{ marginTop: '38px' }}>
           <div
@@ -84,7 +82,7 @@ export default async function RankingsPage() {
               lineHeight: 1.1,
             }}
           >
-            Countries by external debt
+            <T en="Countries by external debt" hi="बाहरी ऋण के आधार पर देश" />
           </h1>
 
           <p
@@ -96,8 +94,7 @@ export default async function RankingsPage() {
               maxWidth: '760px',
             }}
           >
-            Countries ranked by their latest available total
-            external debt reported by the World Bank.
+            <T en="Countries ranked by their latest available total external debt reported by the World Bank." hi="World Bank द्वारा रिपोर्ट किए गए नवीनतम कुल बाहरी ऋण के आधार पर देशों की रैंकिंग।" />
           </p>
         </div>
 
@@ -122,7 +119,7 @@ export default async function RankingsPage() {
                 fontSize: '14px',
               }}
             >
-              Latest available World Bank observation
+              <T en="Latest available World Bank observation" hi="World Bank का नवीनतम उपलब्ध रिकॉर्ड" />
             </div>
 
             <div
@@ -132,7 +129,7 @@ export default async function RankingsPage() {
                 fontSize: '13px',
               }}
             >
-              Ranking is recalculated from source data.
+              <T en="Ranking is recalculated from source data." hi="रैंकिंग स्रोत डेटा से फिर से गणना की जाती है।" />
             </div>
           </div>
 
@@ -146,10 +143,10 @@ export default async function RankingsPage() {
             >
               <thead>
                 <tr>
-                  <th style={headerStyle}>Rank</th>
-                  <th style={headerStyle}>Country</th>
-                  <th style={headerStyle}>External debt</th>
-                  <th style={headerStyle}>Latest year</th>
+                  <th style={headerStyle}><T en="Rank" hi="रैंक" /></th>
+                  <th style={headerStyle}><T en="Country" hi="देश" /></th>
+                  <th style={headerStyle}><T en="External debt" hi="बाहरी ऋण" /></th>
+                  <th style={headerStyle}><T en="Latest year" hi="नवीनतम वर्ष" /></th>
                 </tr>
               </thead>
 
@@ -302,4 +299,8 @@ const headerStyle: React.CSSProperties = {
 const cellStyle: React.CSSProperties = {
   padding: '18px 24px',
   borderBottom: '1px solid #1E3550',
+}
+
+const languageToggleStyle: React.CSSProperties = {
+  color: '#9FB3C8', background: 'transparent', border: '1px solid #1E3550', borderRadius: '999px', padding: '8px 12px', cursor: 'pointer',
 }

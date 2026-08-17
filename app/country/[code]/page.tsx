@@ -5,6 +5,8 @@ import {
 } from '../../../lib/worldbank'
 import { allCountries } from '../../../lib/countries'
 import DebtComparisonChart from '../../../components/DebtComparisonChart'
+import LanguageToggle from '../../../components/LanguageToggle'
+import T from '../../../components/LocalizedText'
 
 function formatDebt(value: number | null) {
   if (value === null) return 'Unavailable'
@@ -90,7 +92,7 @@ export default async function CountryPage({
               textDecoration: 'none',
             }}
           >
-            ← Back to home
+            ← <T en="Back to home" hi="होम पर वापस जाएँ" />
           </Link>
 
           <div
@@ -102,7 +104,7 @@ export default async function CountryPage({
               padding: '32px',
             }}
           >
-            <h1 style={{ margin: 0 }}>Country not found</h1>
+            <h1 style={{ margin: 0 }}><T en="Country not found" hi="देश नहीं मिला" /></h1>
 
             <p
               style={{
@@ -155,7 +157,7 @@ export default async function CountryPage({
               textDecoration: 'none',
             }}
           >
-            ← Back to home
+            ← <T en="Back to home" hi="होम पर वापस जाएँ" />
           </Link>
 
           <div style={{ marginTop: '40px' }}>
@@ -207,7 +209,7 @@ export default async function CountryPage({
                 lineHeight: 1.6,
               }}
             >
-              {country.code3} · External debt data
+              {country.code3} · <T en="External debt data" hi="बाहरी ऋण डेटा" />
             </p>
           </div>
 
@@ -231,7 +233,7 @@ export default async function CountryPage({
                 fontWeight: 700,
               }}
             >
-              DATA UNAVAILABLE
+              <T en="DATA UNAVAILABLE" hi="डेटा उपलब्ध नहीं" />
             </div>
 
             <h2
@@ -240,7 +242,7 @@ export default async function CountryPage({
                 fontSize: '25px',
               }}
             >
-              No usable external debt observation was returned
+              <T en="No usable external debt observation was returned" hi="कोई उपयोगी बाहरी ऋण रिकॉर्ड नहीं मिला" />
             </h2>
 
             <p
@@ -251,10 +253,7 @@ export default async function CountryPage({
                 maxWidth: '760px',
               }}
             >
-              The selected World Bank external-debt indicator
-              does not currently provide a usable observation for
-              this country. DebtScope does not invent or estimate
-              missing official values.
+              <T en="The selected World Bank external-debt indicator does not currently provide a usable observation for this country. DebtScope does not invent or estimate missing official values." hi="चुना गया World Bank बाहरी-ऋण संकेतक अभी इस देश के लिए उपयोगी रिकॉर्ड उपलब्ध नहीं कराता है। DebtScope कोई गुम आधिकारिक मूल्य गढ़ता या अनुमानित नहीं करता।" />
             </p>
 
             <div
@@ -304,8 +303,12 @@ export default async function CountryPage({
             fontSize: '15px',
           }}
         >
-          ← Back to home
+            ← <T en="Back to home" hi="होम पर वापस जाएँ" />
         </Link>
+
+        <LanguageToggle
+          style={{ float: 'right', color: '#9FB3C8', background: 'transparent', border: '1px solid #1E3550', borderRadius: '999px', padding: '8px 12px', cursor: 'pointer' }}
+        />
 
         <div style={{ marginTop: '38px' }}>
           <div
@@ -372,8 +375,7 @@ export default async function CountryPage({
               maxWidth: '760px',
             }}
           >
-            External debt intelligence based on official
-            World Bank data.
+            <T en="External debt intelligence based on official World Bank data." hi="आधिकारिक World Bank डेटा पर आधारित बाहरी ऋण जानकारी।" />
           </p>
         </div>
 
@@ -387,27 +389,27 @@ export default async function CountryPage({
           }}
         >
           <SummaryCard
-            title="External debt"
+            title={<T en="External debt" hi="बाहरी ऋण" />}
             value={formatDebt(latest.debt)}
-            description={`Latest available observation: ${latest.year}`}
+            description={<><T en="Latest available observation:" hi="नवीनतम उपलब्ध रिकॉर्ड:" /> {latest.year}</>}
           />
 
           <SummaryCard
-            title="External debt-to-GDP"
+            title={<T en="External debt-to-GDP" hi="बाहरी ऋण-से-GDP" />}
             value={formatRatio(latest.debtToGdp)}
-            description="External debt ÷ GDP"
+            description={<T en="External debt ÷ GDP" hi="बाहरी ऋण ÷ GDP" />}
           />
 
           <SummaryCard
-            title="YoY change"
+            title={<T en="YoY change" hi="वार्षिक बदलाव" />}
             value={formatPercent(latest.yoyChange)}
-            description="Compared with previous available observation"
+            description={<T en="Compared with previous available observation" hi="पिछले उपलब्ध रिकॉर्ड की तुलना में" />}
           />
 
           <SummaryCard
-            title="Data source"
+            title={<T en="Data source" hi="डेटा स्रोत" />}
             value="World Bank"
-            description="Official indicator data"
+            description={<T en="Official indicator data" hi="आधिकारिक संकेतक डेटा" />}
           />
         </section>
 
@@ -431,13 +433,13 @@ export default async function CountryPage({
           }}
         >
           <InfoCard
-            title="What is external debt?"
-            text="External debt is debt owed to non-resident creditors. DebtScope keeps external debt distinct from broader public or government debt concepts."
+            title={<T en="What is external debt?" hi="बाहरी ऋण क्या है?" />}
+            text={<T en="External debt is debt owed to non-resident creditors. DebtScope keeps external debt distinct from broader public or government debt concepts." hi="बाहरी ऋण वह ऋण है जो गैर-निवासी लेनदारों को देय होता है। DebtScope इसे व्यापक सार्वजनिक या सरकारी ऋण की अवधारणाओं से अलग रखता है।" />}
           />
 
           <InfoCard
-            title="About the calculation"
-            text="External debt-to-GDP is calculated from total external debt and GDP for the same year. Year-over-year change uses the immediately preceding available external-debt observation."
+            title={<T en="About the calculation" hi="गणना के बारे में" />}
+            text={<T en="External debt-to-GDP is calculated from total external debt and GDP for the same year. Year-over-year change uses the immediately preceding available external-debt observation." hi="बाहरी ऋण-से-GDP की गणना उसी वर्ष के कुल बाहरी ऋण और GDP से की जाती है। वार्षिक बदलाव ठीक पहले उपलब्ध बाहरी ऋण रिकॉर्ड का उपयोग करता है।" />}
           />
         </section>
 
@@ -460,7 +462,7 @@ export default async function CountryPage({
               fontWeight: 700,
             }}
           >
-            Compare this country
+            <T en="Compare this country" hi="इस देश की तुलना करें" />
           </Link>
 
           <Link
@@ -474,7 +476,7 @@ export default async function CountryPage({
               borderRadius: '11px',
             }}
           >
-            Explore another country
+            <T en="Explore another country" hi="दूसरा देश देखें" />
           </Link>
         </section>
 
@@ -500,9 +502,9 @@ function SummaryCard({
   value,
   description,
 }: {
-  title: string
+  title: React.ReactNode
   value: string
-  description: string
+  description: React.ReactNode
 }) {
   return (
     <div
@@ -550,8 +552,8 @@ function InfoCard({
   title,
   text,
 }: {
-  title: string
-  text: string
+  title: React.ReactNode
+  text: React.ReactNode
 }) {
   return (
     <div
