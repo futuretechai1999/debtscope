@@ -6,6 +6,9 @@ export const metadata = {
   title: 'DebtScope | Global External Debt Intelligence',
   description: 'Explore external debt data for developing economies. Compare countries, view interactive global maps, and get plain-language economic insights.',
   keywords: 'external debt, world bank data, country debt comparison, global economy, debt map, India external debt, China debt',
+  verification: {
+    google: 'zkLSy1lhGjGIe0IHgp-fbpQTgIM3-Qi24MbN8AB-rRM',
+  },
   openGraph: {
     title: 'DebtScope | Global Debt Tracker',
     description: 'Track and compare the external debt of 120+ countries in real-time.',
