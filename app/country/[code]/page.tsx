@@ -1,588 +1,295 @@
 import Link from 'next/link'
-import {
-  getCompareData,
-  type CompareObservation,
-} from '../../../lib/worldbank'
-import { allCountries } from '../../../lib/countries'
 import DebtComparisonChart from '../../../components/DebtComparisonChart'
-import LanguageToggle from '../../../components/LanguageToggle'
-import T from '../../../components/LocalizedText'
+import { getHistoricalDebtData } from '../../../lib/worldbank'
+import { findCountry } from '../../../lib/countries'
 
-function formatDebt(value: number | null) {
-  if (value === null) return 'Unavailable'
-
-  if (value >= 1_000_000_000_000) {
-    return `$${(value / 1_000_000_000_000).toFixed(2)}T`
-  }
-
-  if (value >= 1_000_000_000) {
-    return `$${(value / 1_000_000_000).toFixed(2)}B`
-  }
-
-  return `$${(value / 1_000_000).toFixed(2)}M`
+interface DebtObservation {
+  date: string
+  value: number | null
 }
 
-function formatPercent(value: number | null) {
-  if (value === null) return 'Unavailable'
-  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
-}
+async function getCountryDebtDetails(code: string) {
+  const url = `https://api.worldbank.org/v2/country/${code.toLowerCase()}/indicator/DT.DOD.DECT.CD?format=json&per_page=15`
 
-function formatRatio(value: number | null) {
-  if (value === null) return 'Unavailable'
-  return `${value.toFixed(2)}%`
-}
+  try {
+    const res = await fetch(url, { next: { revalidate: 86400 } })
+    const data = await res.json()
 
-function getCountryMeta(code: string) {
-  const normalizedCode = code.toUpperCase()
+    if (!data || !data[1]) {
+      return { records: [], latest: null, previous: null }
+    }
 
-  const country = allCountries.find(
-    (item) => item.code3.toUpperCase() === normalizedCode
-  )
+    const validRecords: DebtObservation[] = data[1].filter(
+      (item: any) => item.value !== null
+    )
 
-  if (!country) {
-    return null
-  }
-
-  return {
-    name: country.name,
-    code3: country.code3.toUpperCase(),
-    code2: country.code2.toUpperCase(),
+    return {
+      records: validRecords,
+      latest: validRecords[0] || null,
+      previous: validRecords[1] || null,
+    }
+  } catch (error) {
+    console.error('Error fetching country debt details:', error)
+    return { records: [], latest: null, previous: null }
   }
 }
 
-function getFlagUrl(code2: string) {
-  return `https://flagcdn.com/40x30/${code2.toLowerCase()}.png`
-}
-
-type CountryPageProps = {
-  params: Promise<{
-    code: string
-  }>
+const formatCurrency = (val: number | null) => {
+  if (val === null) return 'Data unavailable'
+  if (val >= 1e12) return `$${(val / 1e12).toFixed(2)} Trillion`
+  if (val >= 1e9) return `$${(val / 1e9).toFixed(2)} Billion`
+  return `$${val.toLocaleString()}`
 }
 
 export default async function CountryPage({
   params,
-}: CountryPageProps) {
+}: {
+  params: Promise<{ code: string }>
+}) {
   const resolvedParams = await params
-  const code = resolvedParams.code.toUpperCase()
+  const rawCode = resolvedParams.code.toUpperCase()
 
-  const country = getCountryMeta(code)
+  const countryMeta = findCountry(rawCode)
+  const countryName = countryMeta?.name || rawCode
+  const flag = countryMeta?.flag || '🌐'
 
-  if (!country) {
-    return (
-      <main
-        style={{
-          minHeight: '100vh',
-          background: '#07111F',
-          color: '#FFFFFF',
-          fontFamily: 'Arial, sans-serif',
-          padding: '48px',
-        }}
-      >
-        <div
-          style={{
-            width: 'min(900px, 100%)',
-            margin: '0 auto',
-          }}
-        >
-          <Link
-            href="/"
-            style={{
-              color: '#34D6E7',
-              textDecoration: 'none',
-            }}
-          >
-            ← <T en="Back to home" hi="होम पर वापस जाएँ" />
-          </Link>
+  const [{ latest, previous }, historicalData] = await Promise.all([
+    getCountryDebtDetails(rawCode),
+    getHistoricalDebtData([rawCode]),
+  ])
 
-          <div
-            style={{
-              marginTop: '60px',
-              background: '#0F1C2E',
-              border: '1px solid #1E3550',
-              borderRadius: '20px',
-              padding: '32px',
-            }}
-          >
-            <h1 style={{ margin: 0 }}><T en="Country not found" hi="देश नहीं मिला" /></h1>
-
-            <p
-              style={{
-                color: '#9FB3C8',
-                lineHeight: 1.6,
-                marginTop: '12px',
-              }}
-            >
-              We could not find a country matching the requested
-              country code.
-            </p>
-          </div>
-        </div>
-      </main>
-    )
+  let yoyChange = 'N/A'
+  if (latest && previous && latest.value && previous.value) {
+    const diff = ((latest.value - previous.value) / previous.value) * 100
+    yoyChange = `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%`
   }
 
-  const history = await getCompareData(country.code3)
-
-  const latest: CompareObservation | null =
-    history.length > 0
-      ? history.reduce((latestItem, currentItem) =>
-          currentItem.year > latestItem.year
-            ? currentItem
-            : latestItem
-        )
-      : null
-
-  if (!latest) {
-    return (
-      <main
-        style={{
-          minHeight: '100vh',
-          background: '#07111F',
-          color: '#FFFFFF',
-          fontFamily: 'Arial, sans-serif',
-        }}
-      >
-        <div
-          style={{
-            width: 'min(1100px, calc(100% - 48px))',
-            margin: '0 auto',
-            padding: '48px 0 80px',
-          }}
-        >
-          <Link
-            href="/"
-            style={{
-              color: '#34D6E7',
-              textDecoration: 'none',
-            }}
-          >
-            ← <T en="Back to home" hi="होम पर वापस जाएँ" />
-          </Link>
-
-          <div style={{ marginTop: '40px' }}>
-            <div
-              style={{
-                color: '#34D6E7',
-                fontSize: '14px',
-                fontWeight: 700,
-                letterSpacing: '1.5px',
-              }}
-            >
-              DEBTSCOPE COUNTRY
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                marginTop: '12px',
-              }}
-            >
-              <img
-                src={getFlagUrl(country.code2)}
-                alt={`${country.name} flag`}
-                width="40"
-                height="30"
-                style={{
-                  objectFit: 'cover',
-                  borderRadius: '4px',
-                  border: '1px solid #1E3550',
-                }}
-              />
-
-              <h1
-                style={{
-                  margin: 0,
-                  fontSize: '48px',
-                }}
-              >
-                {country.name}
-              </h1>
-            </div>
-
-            <p
-              style={{
-                color: '#9FB3C8',
-                fontSize: '18px',
-                lineHeight: 1.6,
-              }}
-            >
-              {country.code3} · <T en="External debt data" hi="बाहरी ऋण डेटा" />
-            </p>
-          </div>
-
-          <section
-            style={{
-              marginTop: '32px',
-              background: '#0F1C2E',
-              border: '1px solid #1E3550',
-              borderRadius: '20px',
-              padding: '32px',
-            }}
-          >
-            <div
-              style={{
-                display: 'inline-block',
-                padding: '7px 11px',
-                borderRadius: '999px',
-                background: '#17283D',
-                color: '#F59E0B',
-                fontSize: '13px',
-                fontWeight: 700,
-              }}
-            >
-              <T en="DATA UNAVAILABLE" hi="डेटा उपलब्ध नहीं" />
-            </div>
-
-            <h2
-              style={{
-                margin: '18px 0 0',
-                fontSize: '25px',
-              }}
-            >
-              <T en="No usable external debt observation was returned" hi="कोई उपयोगी बाहरी ऋण रिकॉर्ड नहीं मिला" />
-            </h2>
-
-            <p
-              style={{
-                marginTop: '10px',
-                color: '#9FB3C8',
-                lineHeight: 1.7,
-                maxWidth: '760px',
-              }}
-            >
-              <T en="The selected World Bank external-debt indicator does not currently provide a usable observation for this country. DebtScope does not invent or estimate missing official values." hi="चुना गया World Bank बाहरी-ऋण संकेतक अभी इस देश के लिए उपयोगी रिकॉर्ड उपलब्ध नहीं कराता है। DebtScope कोई गुम आधिकारिक मूल्य गढ़ता या अनुमानित नहीं करता।" />
-            </p>
-
-            <div
-              style={{
-                marginTop: '22px',
-                color: '#71869C',
-                fontSize: '13px',
-              }}
-            >
-              Source: World Bank — External debt stocks,
-              total (current US$), indicator DT.DOD.DECT.CD.
-            </div>
-          </section>
-        </div>
-      </main>
-    )
-  }
-
-  const chartData = history
-    .filter((item) => item.year >= 2015)
-    .map((item) => ({
-      year: item.year,
-      [country.code3]: item.debt,
-    }))
+  const hasData = Boolean(latest && latest.value !== null)
 
   return (
     <main
       style={{
         minHeight: '100vh',
-        background: '#07111F',
-        color: '#FFFFFF',
-        fontFamily: 'Arial, sans-serif',
+        backgroundColor: '#070b14',
+        color: '#ffffff',
+        padding: '40px 24px',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
-      <div
-        style={{
-          width: 'min(1180px, calc(100% - 48px))',
-          margin: '0 auto',
-          padding: '48px 0 80px',
-        }}
-      >
-        <Link
-          href="/"
-          style={{
-            color: '#34D6E7',
-            textDecoration: 'none',
-            fontSize: '15px',
-          }}
-        >
-            ← <T en="Back to home" hi="होम पर वापस जाएँ" />
-        </Link>
-
-        <LanguageToggle
-          style={{ float: 'right', color: '#9FB3C8', background: 'transparent', border: '1px solid #1E3550', borderRadius: '999px', padding: '8px 12px', cursor: 'pointer' }}
-        />
-
-        <div style={{ marginTop: '38px' }}>
-          <div
-            style={{
-              color: '#34D6E7',
-              fontSize: '13px',
-              fontWeight: 700,
-              letterSpacing: '1.5px',
-            }}
-          >
-            DEBTSCOPE COUNTRY
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '14px',
-              flexWrap: 'wrap',
-              marginTop: '12px',
-            }}
-          >
-            <img
-              src={getFlagUrl(country.code2)}
-              alt={`${country.name} flag`}
-              width="48"
-              height="36"
-              style={{
-                objectFit: 'cover',
-                borderRadius: '5px',
-                border: '1px solid #1E3550',
-              }}
-            />
-
-            <h1
-              style={{
-                margin: 0,
-                fontSize: '48px',
-                lineHeight: 1.1,
-              }}
-            >
-              {country.name}
-            </h1>
-
-            <span
-              style={{
-                color: '#71869C',
-                fontSize: '14px',
-                padding: '7px 11px',
-                border: '1px solid #1E3550',
-                borderRadius: '999px',
-              }}
-            >
-              {country.code3}
-            </span>
-          </div>
-
-          <p
-            style={{
-              marginTop: '14px',
-              color: '#9FB3C8',
-              fontSize: '18px',
-              lineHeight: 1.6,
-              maxWidth: '760px',
-            }}
-          >
-            <T en="External debt intelligence based on official World Bank data." hi="आधिकारिक World Bank डेटा पर आधारित बाहरी ऋण जानकारी।" />
-          </p>
-        </div>
-
-        <section
-          style={{
-            display: 'grid',
-            gridTemplateColumns:
-              'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '16px',
-            marginTop: '32px',
-          }}
-        >
-          <SummaryCard
-            title={<T en="External debt" hi="बाहरी ऋण" />}
-            value={formatDebt(latest.debt)}
-            description={<><T en="Latest available observation:" hi="नवीनतम उपलब्ध रिकॉर्ड:" /> {latest.year}</>}
-          />
-
-          <SummaryCard
-            title={<T en="External debt-to-GDP" hi="बाहरी ऋण-से-GDP" />}
-            value={formatRatio(latest.debtToGdp)}
-            description={<T en="External debt ÷ GDP" hi="बाहरी ऋण ÷ GDP" />}
-          />
-
-          <SummaryCard
-            title={<T en="YoY change" hi="वार्षिक बदलाव" />}
-            value={formatPercent(latest.yoyChange)}
-            description={<T en="Compared with previous available observation" hi="पिछले उपलब्ध रिकॉर्ड की तुलना में" />}
-          />
-
-          <SummaryCard
-            title={<T en="Data source" hi="डेटा स्रोत" />}
-            value="World Bank"
-            description={<T en="Official indicator data" hi="आधिकारिक संकेतक डेटा" />}
-          />
-        </section>
-
-        <DebtComparisonChart
-          data={chartData}
-          countries={[
-            {
-              code: country.code3,
-              name: country.name,
-            },
-          ]}
-        />
-
-        <section
-          style={{
-            display: 'grid',
-            gridTemplateColumns:
-              'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '16px',
-            marginTop: '28px',
-          }}
-        >
-          <InfoCard
-            title={<T en="What is external debt?" hi="बाहरी ऋण क्या है?" />}
-            text={<T en="External debt is debt owed to non-resident creditors. DebtScope keeps external debt distinct from broader public or government debt concepts." hi="बाहरी ऋण वह ऋण है जो गैर-निवासी लेनदारों को देय होता है। DebtScope इसे व्यापक सार्वजनिक या सरकारी ऋण की अवधारणाओं से अलग रखता है।" />}
-          />
-
-          <InfoCard
-            title={<T en="About the calculation" hi="गणना के बारे में" />}
-            text={<T en="External debt-to-GDP is calculated from total external debt and GDP for the same year. Year-over-year change uses the immediately preceding available external-debt observation." hi="बाहरी ऋण-से-GDP की गणना उसी वर्ष के कुल बाहरी ऋण और GDP से की जाती है। वार्षिक बदलाव ठीक पहले उपलब्ध बाहरी ऋण रिकॉर्ड का उपयोग करता है।" />}
-          />
-        </section>
-
-        <section
-          style={{
-            marginTop: '28px',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '12px',
-          }}
-        >
-          <Link
-            href={`/compare?countries=${country.code3},CHN`}
-            style={{
-              background: '#34D6E7',
-              color: '#07111F',
-              textDecoration: 'none',
-              padding: '13px 20px',
-              borderRadius: '11px',
-              fontWeight: 700,
-            }}
-          >
-            <T en="Compare this country" hi="इस देश की तुलना करें" />
-          </Link>
-
+      <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+        {/* Navigation / Header */}
+        <div style={{ marginBottom: '24px' }}>
           <Link
             href="/"
             style={{
-              background: '#0F1C2E',
-              border: '1px solid #1E3550',
-              color: '#FFFFFF',
+              color: '#94a3b8',
+              fontSize: '13px',
               textDecoration: 'none',
-              padding: '13px 20px',
-              borderRadius: '11px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
             }}
           >
-            <T en="Explore another country" hi="दूसरा देश देखें" />
+            ← Back to Overview
           </Link>
-        </section>
+        </div>
 
+        {/* Country Title Block */}
         <div
           style={{
-            marginTop: '24px',
-            color: '#71869C',
-            fontSize: '13px',
-            lineHeight: 1.6,
+            backgroundColor: '#0d1527',
+            border: '1px solid #1e293b',
+            borderRadius: '16px',
+            padding: '32px',
+            marginBottom: '28px',
           }}
         >
-          Source: World Bank. External debt stocks, total
-          (current US$), indicator DT.DOD.DECT.CD; GDP
-          (current US$), indicator NY.GDP.MKTP.CD.
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <span style={{ fontSize: '48px', lineHeight: 1 }}>{flag}</span>
+              <div>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: '#38bdf8',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                  }}
+                >
+                  ISO-3: {rawCode}
+                </span>
+                <h1
+                  style={{
+                    fontSize: '32px',
+                    fontWeight: 800,
+                    margin: '4px 0 0 0',
+                    letterSpacing: '-0.02em',
+                  }}
+                >
+                  {countryName}
+                </h1>
+              </div>
+            </div>
+
+            <Link
+              href={`/compare?countries=${rawCode},CHN`}
+              style={{
+                backgroundColor: '#1e293b',
+                color: '#38bdf8',
+                border: '1px solid #334155',
+                padding: '10px 18px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: 600,
+                textDecoration: 'none',
+              }}
+            >
+              Compare with others →
+            </Link>
+          </div>
+        </div>
+
+        {/* Key Metrics Grid */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: '16px',
+            marginBottom: '28px',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#0d1527',
+              border: '1px solid #1e293b',
+              borderRadius: '12px',
+              padding: '24px',
+            }}
+          >
+            <span style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 600 }}>
+              TOTAL EXTERNAL DEBT
+            </span>
+            <div
+              style={{
+                fontSize: '28px',
+                fontWeight: 800,
+                color: hasData ? '#ffffff' : '#94a3b8',
+                marginTop: '8px',
+              }}
+            >
+              {hasData ? formatCurrency(latest?.value ?? null) : 'Data unavailable'}
+            </div>
+            <span style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', display: 'block' }}>
+              Indicator: DT.DOD.DECT.CD
+            </span>
+          </div>
+
+          <div
+            style={{
+              backgroundColor: '#0d1527',
+              border: '1px solid #1e293b',
+              borderRadius: '12px',
+              padding: '24px',
+            }}
+          >
+            <span style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 600 }}>
+              YEAR-OVER-YEAR CHANGE
+            </span>
+            <div
+              style={{
+                fontSize: '28px',
+                fontWeight: 800,
+                marginTop: '8px',
+                color: yoyChange.startsWith('+')
+                  ? '#f87171'
+                  : yoyChange.startsWith('-')
+                  ? '#4ade80'
+                  : '#94a3b8',
+              }}
+            >
+              {yoyChange}
+            </div>
+            <span style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', display: 'block' }}>
+              Annual net variation
+            </span>
+          </div>
+
+          <div
+            style={{
+              backgroundColor: '#0d1527',
+              border: '1px solid #1e293b',
+              borderRadius: '12px',
+              padding: '24px',
+            }}
+          >
+            <span style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 600 }}>
+              LATEST OBSERVATION YEAR
+            </span>
+            <div
+              style={{
+                fontSize: '28px',
+                fontWeight: 800,
+                color: '#ffffff',
+                marginTop: '8px',
+              }}
+            >
+              {latest?.date || 'N/A'}
+            </div>
+            <span style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', display: 'block' }}>
+              Official World Bank reporting
+            </span>
+          </div>
+        </div>
+
+        {/* Data Unavailable Warning Box */}
+        {!hasData && (
+          <div
+            style={{
+              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              borderRadius: '12px',
+              padding: '20px',
+              marginBottom: '28px',
+              color: '#fca5a5',
+              fontSize: '14px',
+            }}
+          >
+            <strong>Official data unavailable:</strong> No published external debt observations exist for{' '}
+            {countryName} under the World Bank external debt indicator (`DT.DOD.DECT.CD`).
+          </div>
+        )}
+
+        {/* Historical Chart */}
+        {hasData && (
+          <div style={{ marginBottom: '28px' }}>
+            <DebtComparisonChart data={historicalData} countryCodes={[rawCode]} />
+          </div>
+        )}
+
+        {/* Footer Note */}
+        <div
+          style={{
+            borderTop: '1px solid #1e293b',
+            paddingTop: '20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            color: '#64748b',
+            fontSize: '12px',
+          }}
+        >
+          <span>DebtScope Country Profile</span>
+          <span>Data source: World Bank International Debt Statistics</span>
         </div>
       </div>
     </main>
-  )
-}
-
-function SummaryCard({
-  title,
-  value,
-  description,
-}: {
-  title: React.ReactNode
-  value: string
-  description: React.ReactNode
-}) {
-  return (
-    <div
-      style={{
-        background: '#0F1C2E',
-        border: '1px solid #1E3550',
-        borderRadius: '18px',
-        padding: '22px',
-      }}
-    >
-      <div
-        style={{
-          color: '#9FB3C8',
-          fontSize: '14px',
-        }}
-      >
-        {title}
-      </div>
-
-      <div
-        style={{
-          marginTop: '8px',
-          fontSize: '27px',
-          fontWeight: 700,
-        }}
-      >
-        {value}
-      </div>
-
-      <div
-        style={{
-          marginTop: '7px',
-          color: '#71869C',
-          fontSize: '13px',
-          lineHeight: 1.5,
-        }}
-      >
-        {description}
-      </div>
-    </div>
-  )
-}
-
-function InfoCard({
-  title,
-  text,
-}: {
-  title: React.ReactNode
-  text: React.ReactNode
-}) {
-  return (
-    <div
-      style={{
-        background: '#0F1C2E',
-        border: '1px solid #1E3550',
-        borderRadius: '18px',
-        padding: '24px',
-      }}
-    >
-      <h2
-        style={{
-          margin: 0,
-          fontSize: '21px',
-        }}
-      >
-        {title}
-      </h2>
-
-      <p
-        style={{
-          margin: '10px 0 0',
-          color: '#9FB3C8',
-          lineHeight: 1.7,
-          fontSize: '14px',
-        }}
-      >
-        {text}
-      </p>
-    </div>
   )
 }

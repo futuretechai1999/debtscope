@@ -1,293 +1,49 @@
-import { allCountries } from './countries'
+// Memory cache to avoid repeated slow network calls to World Bank API
+const cache = new Map<string, { data: any; timestamp: number }>()
+const CACHE_TTL = 1000 * 60 * 60 // 1 hour
 
-const WORLD_BANK_API = 'https://api.worldbank.org/v2'
-
-const EXTERNAL_DEBT_INDICATOR = 'DT.DOD.DECT.CD'
-const GDP_INDICATOR = 'NY.GDP.MKTP.CD'
-
-export type DebtObservation = {
-  countryCode: string
-  year: number
-  value: number | null
-}
-
-export type LatestDebtData = {
-  countryCode: string
-  year: number
-  value: number
-}
-
-export type EconomicObservation = {
-  countryCode: string
-  year: number
-  value: number | null
-}
-
-export type CompareObservation = {
-  countryCode: string
-  year: number
-  debt: number | null
-  gdp: number | null
-  debtToGdp: number | null
-  yoyChange: number | null
-}
-
-export type DebtRanking = {
-  countryCode: string
-  countryName: string
-  year: number
-  value: number
-}
-
-async function getIndicatorData(
-  countryCode: string,
-  indicator: string
-): Promise<EconomicObservation[]> {
-  const code = countryCode.toUpperCase()
-
-  const url =
-    `${WORLD_BANK_API}/country/${code}/indicator/${indicator}` +
-    `?format=json&per_page=100`
-
-  const response = await fetch(url, {
-    next: { revalidate: 3600 },
-  })
-
-  if (!response.ok) {
-    throw new Error(
-      `World Bank request failed: ${response.status} ${response.statusText}`
-    )
-  }
-
-  const data = await response.json()
-
-  if (!Array.isArray(data) || !Array.isArray(data[1])) {
-    throw new Error('Unexpected World Bank API response.')
-  }
-
-  return data[1]
-    .map(
-      (item: {
-        countryiso3code?: string
-        date?: string
-        value?: number | null
-      }) => ({
-        countryCode: item.countryiso3code ?? code,
-        year: Number(item.date),
-        value: item.value ?? null,
-      })
-    )
-    .filter(
-      (item: EconomicObservation) =>
-        Number.isFinite(item.year) &&
-        item.value !== null &&
-        Number.isFinite(item.value)
-    )
-}
-
-export async function getExternalDebt(
-  countryCode: string
-): Promise<DebtObservation[]> {
-  const history = await getIndicatorData(
-    countryCode,
-    EXTERNAL_DEBT_INDICATOR
-  )
-
-  return history.map((item) => ({
-    countryCode: item.countryCode,
-    year: item.year,
-    value: item.value,
-  }))
-}
-
-export async function getLatestExternalDebt(
-  countryCode: string
-): Promise<LatestDebtData | null> {
-  const history = await getExternalDebt(countryCode)
-
-  if (history.length === 0) {
-    return null
-  }
-
-  const latest = history.reduce((latestItem, currentItem) =>
-    currentItem.year > latestItem.year ? currentItem : latestItem
-  )
-
-  return {
-    countryCode: latest.countryCode,
-    year: latest.year,
-    value: latest.value as number,
-  }
-}
-
-export async function hasExternalDebtData(
-  countryCode: string
-): Promise<boolean> {
-  const history = await getExternalDebt(countryCode)
-
-  return history.length > 0
-}
-
-export async function getGDP(
-  countryCode: string
-): Promise<EconomicObservation[]> {
-  return getIndicatorData(countryCode, GDP_INDICATOR)
-}
-
-export async function getCompareData(
-  countryCode: string
-): Promise<CompareObservation[]> {
-  const [debtHistory, gdpHistory] = await Promise.all([
-    getExternalDebt(countryCode),
-    getGDP(countryCode),
-  ])
-
-  const gdpByYear = new Map<number, number>()
-
-  for (const item of gdpHistory) {
-    if (item.value !== null) {
-      gdpByYear.set(item.year, item.value)
+async function fetchWithCache(url: string) {
+  const now = Date.now()
+  if (cache.has(url)) {
+    const cached = cache.get(url)!
+    if (now - cached.timestamp < CACHE_TTL) {
+      return cached.data
     }
   }
 
-  const sortedDebt = [...debtHistory].sort(
-    (a, b) => a.year - b.year
-  )
-
-  return sortedDebt.map((item, index) => {
-    const debt = item.value
-    const gdp = gdpByYear.get(item.year) ?? null
-
-    const previous =
-      index > 0 ? sortedDebt[index - 1] : null
-
-    const yoyChange =
-      previous &&
-      previous.value !== null &&
-      previous.value !== 0
-        ? ((debt - previous.value) / previous.value) * 100
-        : null
-
-    const debtToGdp =
-      debt !== null &&
-      gdp !== null &&
-      gdp !== 0
-        ? (debt / gdp) * 100
-        : null
-
-    return {
-      countryCode: item.countryCode,
-      year: item.year,
-      debt,
-      gdp,
-      debtToGdp,
-      yoyChange,
-    }
-  })
-}
-
-export async function getExternalDebtRankings(
-  limit = 25
-): Promise<DebtRanking[]> {
-  const perPage = 1000
-  let page = 1
-  let totalPages = 1
-
-  const latestByCountry = new Map<string, DebtRanking>()
-
-  // Create a fast lookup of actual countries.
-  // This automatically excludes World Bank aggregates,
-  // income groups, regions, and lending groups.
-  const validCountryCodes = new Set(
-    allCountries.map((country) =>
-      country.code3.toUpperCase()
-    )
-  )
-
-  while (page <= totalPages) {
-    const url =
-      `${WORLD_BANK_API}/country/all/indicator/${EXTERNAL_DEBT_INDICATOR}` +
-      `?format=json&per_page=${perPage}&page=${page}`
-
-    const response = await fetch(url, {
-      next: { revalidate: 3600 },
+  try {
+    const res = await fetch(url, {
+      next: { revalidate: 86400 },
     })
 
-    if (!response.ok) {
-      throw new Error(
-        `World Bank rankings request failed: ${response.status} ${response.statusText}`
-      )
-    }
+    if (!res.ok) return null
+    const data = await res.json()
 
-    const data = await response.json()
-
-    if (!Array.isArray(data) || !Array.isArray(data[1])) {
-      throw new Error(
-        'Unexpected World Bank rankings response.'
-      )
-    }
-
-    const metadata = data[0] as {
-      pages?: number
-      total?: number
-    }
-
-    totalPages = Number(metadata.pages ?? 1)
-
-    for (const item of data[1]) {
-      const countryCode =
-        item.countryiso3code ?? ''
-
-      const countryName =
-        item.country?.value ?? ''
-
-      const year = Number(item.date)
-      const value = item.value
-
-      // Keep only actual countries from our canonical
-      // country dataset.
-      if (
-        !validCountryCodes.has(
-          countryCode.toUpperCase()
-        )
-      ) {
-        continue
-      }
-
-      if (
-        countryName.length === 0 ||
-        !Number.isFinite(year) ||
-        value === null ||
-        !Number.isFinite(value) ||
-        value < 0
-      ) {
-        continue
-      }
-
-      const normalizedCode =
-        countryCode.toUpperCase()
-
-      const existing =
-        latestByCountry.get(normalizedCode)
-
-      // Keep the latest available observation.
-      if (!existing || year > existing.year) {
-        latestByCountry.set(normalizedCode, {
-          countryCode: normalizedCode,
-          countryName,
-          year,
-          value,
-        })
-      }
-    }
-
-    page += 1
+    cache.set(url, { data, timestamp: now })
+    return data
+  } catch (error) {
+    console.error('World Bank fetch error:', error)
+    return null
   }
+}
 
-  return Array.from(latestByCountry.values())
-    .sort((a, b) => b.value - a.value)
-    .slice(0, limit)
-}export async function getHistoricalDebtData(countryCodes: string[]) {
+export async function getCountryDebt(countryCode: string) {
+  if (!countryCode) return null
+  const code = countryCode.toLowerCase()
+  const url = `https://api.worldbank.org/v2/country/${code}/indicator/DT.DOD.DECT.CD?format=json&per_page=15`
+
+  const data = await fetchWithCache(url)
+  if (!data || !data[1]) return null
+
+  const validRecords = data[1].filter((item: any) => item.value !== null)
+  return {
+    records: validRecords,
+    latest: validRecords[0] || null,
+    previous: validRecords[1] || null,
+  }
+}
+
+export async function getHistoricalDebtData(countryCodes: string[]) {
   if (!countryCodes || countryCodes.length === 0) return []
 
   const codesStr = countryCodes.join(';').toLowerCase()
@@ -297,32 +53,69 @@ export async function getExternalDebtRankings(
 
   const url = `https://api.worldbank.org/v2/country/${codesStr}/indicator/DT.DOD.DECT.CD?date=${startYear}:${endYear}&format=json&per_page=1000`
 
-  try {
-    const res = await fetch(url, { next: { revalidate: 86400 } })
-    const data = await res.json()
+  const data = await fetchWithCache(url)
+  if (!data || !data[1]) return []
 
-    if (!data || !data[1]) return []
+  const chartDataMap = new Map<number, any>()
 
-    const chartDataMap = new Map<number, any>()
+  data[1].forEach((item: any) => {
+    if (item.value !== null) {
+      const year = parseInt(item.date)
+      const code = item.countryiso3code
+      const value = item.value
 
-    data[1].forEach((item: any) => {
-      if (item.value !== null) {
-        const year = parseInt(item.date)
-        const code = item.countryiso3code
-        const value = item.value
+      if (!chartDataMap.has(year)) {
+        chartDataMap.set(year, { year })
+      }
 
-        if (!chartDataMap.has(year)) {
-          chartDataMap.set(year, { year })
-        }
+      const yearData = chartDataMap.get(year)
+      yearData[code] = value
+    }
+  })
 
-        const yearData = chartDataMap.get(year)
-        yearData[code] = value
+  return Array.from(chartDataMap.values()).sort((a, b) => a.year - b.year)
+}
+
+export async function getCompareData(codes: string[] = ['IND', 'CHN']) {
+  const summaries = await Promise.all(
+    codes.map(async (code) => {
+      const debt = await getCountryDebt(code)
+      return {
+        code: code.toUpperCase(),
+        debt: debt?.latest?.value ?? null,
+        year: debt?.latest?.date ?? null,
       }
     })
+  )
+  return summaries
+}
 
-    return Array.from(chartDataMap.values()).sort((a, b) => a.year - b.year)
-  } catch (error) {
-    console.error('Error fetching historical data:', error)
-    return []
-  }
+export async function getExternalDebtRankings(limit: number = 10) {
+  const targetCodes = [
+    'USA', 'CHN', 'JPN', 'DEU', 'GBR', 'FRA', 'IND', 'ITA', 'BRA', 'CAN',
+    'RUS', 'KOR', 'AUS', 'MEX', 'IDN', 'SAU', 'TUR', 'ARG', 'ZAF', 'NGA'
+  ]
+
+  const codesStr = targetCodes.join(';').toLowerCase()
+  const url = `https://api.worldbank.org/v2/country/${codesStr}/indicator/DT.DOD.DECT.CD?format=json&per_page=1000`
+
+  const data = await fetchWithCache(url)
+  if (!data || !data[1]) return []
+
+  const latestMap = new Map<string, any>()
+
+  data[1].forEach((item: any) => {
+    const code = item.countryiso3code?.toUpperCase()
+    if (code && item.value !== null && !latestMap.has(code)) {
+      latestMap.set(code, {
+        code,
+        debt: item.value,
+        year: parseInt(item.date),
+      })
+    }
+  })
+
+  return Array.from(latestMap.values())
+    .sort((a, b) => (b.debt ?? 0) - (a.debt ?? 0))
+    .slice(0, limit)
 }

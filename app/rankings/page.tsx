@@ -1,306 +1,260 @@
 import Link from 'next/link'
-import { getExternalDebtRankings } from '../../lib/worldbank'
 import { allCountries } from '../../lib/countries'
-import LanguageToggle from '../../components/LanguageToggle'
-import T from '../../components/LocalizedText'
 
-function formatDebt(value: number) {
-  if (value >= 1_000_000_000_000) {
-    return `$${(value / 1_000_000_000_000).toFixed(2)}T`
-  }
-
-  if (value >= 1_000_000_000) {
-    return `$${(value / 1_000_000_000).toFixed(2)}B`
-  }
-
-  if (value >= 1_000_000) {
-    return `$${(value / 1_000_000).toFixed(2)}M`
-  }
-
-  return `$${value.toLocaleString()}`
+interface RankingCountry {
+  name: string
+  code: string
+  flag: string
+  debt: number | null
+  year: number | null
 }
 
-function getCountryMeta(code3: string) {
-  return allCountries.find(
-    (country) =>
-      country.code3.toUpperCase() === code3.toUpperCase()
-  )
+async function fetchAllRankings(): Promise<RankingCountry[]> {
+  // Top developing and emerging economies with active World Bank external debt reporting
+  const targetCodes = [
+    'CHN', 'IND', 'BRA', 'MEX', 'IDN', 'TUR', 'ARG', 'ZAF', 'NGA', 'EGY',
+    'PAK', 'BGD', 'VNM', 'PHL', 'THA', 'COL', 'CHL', 'MYS', 'POL', 'PER',
+    'ROU', 'KAZ', 'UKR', 'MAR', 'UZB', 'KEN', 'ETH', 'GHA', 'LKA', 'USA', 'JPN', 'DEU'
+  ]
+
+  const codesStr = targetCodes.join(';').toLowerCase()
+  const url = `https://api.worldbank.org/v2/country/${codesStr}/indicator/DT.DOD.DECT.CD?format=json&per_page=1000`
+
+  try {
+    const res = await fetch(url, { next: { revalidate: 86400 } })
+    const data = await res.json()
+
+    if (!data || !data[1]) return []
+
+    const latestByCountry = new Map<string, { debt: number; year: number }>()
+
+    data[1].forEach((item: any) => {
+      const code = item.countryiso3code?.toUpperCase()
+      if (code && item.value !== null && !latestByCountry.has(code)) {
+        latestByCountry.set(code, {
+          debt: item.value,
+          year: parseInt(item.date),
+        })
+      }
+    })
+
+    const results: RankingCountry[] = targetCodes.map((code) => {
+      const meta = allCountries.find((c) => c.code3.toUpperCase() === code)
+      const debtInfo = latestByCountry.get(code)
+
+      return {
+        name: meta?.name || code,
+        code,
+        flag: meta?.flag || '🌐',
+        debt: debtInfo?.debt ?? null,
+        year: debtInfo?.year ?? null,
+      }
+    })
+
+    // Sort by Debt descending (highest to lowest), unavailable data at the bottom
+    return results.sort((a, b) => {
+      if (a.debt === null) return 1
+      if (b.debt === null) return -1
+      return b.debt - a.debt
+    })
+  } catch (error) {
+    console.error('Error fetching rankings:', error)
+    return []
+  }
 }
 
-function getFlagUrl(code3: string) {
-  const country = getCountryMeta(code3)
-
-  if (!country) {
-    return null
-  }
-
-  return `https://flagcdn.com/32x24/${country.code2.toLowerCase()}.png`
+const formatCurrency = (val: number | null) => {
+  if (val === null) return 'Data unavailable'
+  if (val >= 1e12) return `$${(val / 1e12).toFixed(2)}T`
+  if (val >= 1e9) return `$${(val / 1e9).toFixed(2)}B`
+  return `$${val.toLocaleString()}`
 }
 
 export default async function RankingsPage() {
-  const rankings = await getExternalDebtRankings(25)
+  const rankingList = await fetchAllRankings()
 
   return (
     <main
       style={{
         minHeight: '100vh',
-        background: '#07111F',
-        color: '#FFFFFF',
-        fontFamily: 'Arial, sans-serif',
+        backgroundColor: '#070b14',
+        color: '#ffffff',
+        padding: '40px 24px',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
-      <div
-        style={{
-          width: 'min(1100px, calc(100% - 48px))',
-          margin: '0 auto',
-          padding: '48px 0 80px',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Link href="/" style={{ color: '#34D6E7', textDecoration: 'none', fontSize: '15px' }}>
-            ← <T en="Back to home" hi="होम पर वापस जाएँ" />
-          </Link>
-          <LanguageToggle style={languageToggleStyle} />
-        </div>
-
-        <div style={{ marginTop: '38px' }}>
-          <div
+      <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+        <div style={{ marginBottom: '24px' }}>
+          <Link
+            href="/"
             style={{
-              color: '#34D6E7',
+              color: '#94a3b8',
               fontSize: '13px',
-              fontWeight: 700,
-              letterSpacing: '1.5px',
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
             }}
           >
-            DEBTSCOPE RANKINGS
-          </div>
+            ← Back to Overview
+          </Link>
+        </div>
 
+        <header
+          style={{
+            paddingBottom: '24px',
+            borderBottom: '1px solid #1e293b',
+            marginBottom: '32px',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              color: '#38bdf8',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+            }}
+          >
+            Global Intelligence
+          </span>
           <h1
             style={{
-              margin: '12px 0 0',
-              fontSize: '48px',
-              lineHeight: 1.1,
+              fontSize: '32px',
+              fontWeight: 800,
+              margin: '6px 0 0 0',
+              letterSpacing: '-0.02em',
             }}
           >
-            <T en="Countries by external debt" hi="बाहरी ऋण के आधार पर देश" />
+            Global External Debt Leaderboard
           </h1>
-
-          <p
-            style={{
-              marginTop: '14px',
-              color: '#9FB3C8',
-              fontSize: '18px',
-              lineHeight: 1.6,
-              maxWidth: '760px',
-            }}
-          >
-            <T en="Countries ranked by their latest available total external debt reported by the World Bank." hi="World Bank द्वारा रिपोर्ट किए गए नवीनतम कुल बाहरी ऋण के आधार पर देशों की रैंकिंग।" />
+          <p style={{ color: '#94a3b8', marginTop: '6px', fontSize: '14px' }}>
+            Rankings powered by World Bank International Debt Statistics (`DT.DOD.DECT.CD`).
           </p>
+        </header>
+
+        {/* Informational Context Banner */}
+        <div
+          style={{
+            backgroundColor: '#0d1527',
+            border: '1px solid rgba(56, 189, 248, 0.2)',
+            borderRadius: '10px',
+            padding: '14px 18px',
+            marginBottom: '24px',
+            fontSize: '13px',
+            color: '#94a3b8',
+          }}
+        >
+          <strong style={{ color: '#38bdf8' }}>Data Note:</strong> World Bank external debt statistics report on developing and emerging markets. Advanced economies (e.g. US, Japan) do not report under this indicator and appear as &quot;Data unavailable&quot;.
         </div>
 
-        <section
+        {/* Rankings Table */}
+        <div
           style={{
-            marginTop: '32px',
-            background: '#0F1C2E',
-            border: '1px solid #1E3550',
-            borderRadius: '20px',
+            backgroundColor: '#0d1527',
+            border: '1px solid #1e293b',
+            borderRadius: '12px',
             overflow: 'hidden',
           }}
         >
           <div
             style={{
-              padding: '22px 24px',
-              borderBottom: '1px solid #1E3550',
+              display: 'grid',
+              gridTemplateColumns: '60px 1fr 180px 120px 100px',
+              padding: '14px 20px',
+              borderBottom: '1px solid #1e293b',
+              fontSize: '12px',
+              fontWeight: 700,
+              color: '#64748b',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
             }}
           >
-            <div
-              style={{
-                color: '#9FB3C8',
-                fontSize: '14px',
-              }}
-            >
-              <T en="Latest available World Bank observation" hi="World Bank का नवीनतम उपलब्ध रिकॉर्ड" />
-            </div>
-
-            <div
-              style={{
-                marginTop: '6px',
-                color: '#71869C',
-                fontSize: '13px',
-              }}
-            >
-              <T en="Ranking is recalculated from source data." hi="रैंकिंग स्रोत डेटा से फिर से गणना की जाती है।" />
-            </div>
+            <span>#</span>
+            <span>Country</span>
+            <span>External Debt</span>
+            <span>Year</span>
+            <span style={{ textAlign: 'right' }}>Profile</span>
           </div>
 
-          <div style={{ overflowX: 'auto' }}>
-            <table
-              style={{
-                width: '100%',
-                borderCollapse: 'collapse',
-                minWidth: '720px',
-              }}
-            >
-              <thead>
-                <tr>
-                  <th style={headerStyle}><T en="Rank" hi="रैंक" /></th>
-                  <th style={headerStyle}><T en="Country" hi="देश" /></th>
-                  <th style={headerStyle}><T en="External debt" hi="बाहरी ऋण" /></th>
-                  <th style={headerStyle}><T en="Latest year" hi="नवीनतम वर्ष" /></th>
-                </tr>
-              </thead>
+          {rankingList.map((country, index) => {
+            const hasData = country.debt !== null
+            const rankStr = index < 9 ? `0${index + 1}` : `${index + 1}`
 
-              <tbody>
-                {rankings.map((country, index) => {
-                  const flagUrl = getFlagUrl(
-                    country.countryCode
-                  )
+            return (
+              <div
+                key={country.code}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '60px 1fr 180px 120px 100px',
+                  padding: '16px 20px',
+                  borderBottom:
+                    index === rankingList.length - 1
+                      ? 'none'
+                      : '1px solid #141e33',
+                  alignItems: 'center',
+                  fontSize: '14px',
+                  backgroundColor: hasData ? 'transparent' : 'rgba(15, 23, 42, 0.4)',
+                }}
+              >
+                <span
+                  style={{
+                    color: hasData && index < 3 ? '#38bdf8' : '#64748b',
+                    fontWeight: 700,
+                  }}
+                >
+                  {hasData ? rankStr : '—'}
+                </span>
 
-                  const countryMeta = getCountryMeta(
-                    country.countryCode
-                  )
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '18px' }}>{country.flag}</span>
+                  <span style={{ fontWeight: 600, color: hasData ? '#ffffff' : '#94a3b8' }}>
+                    {country.name}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      backgroundColor: '#1e293b',
+                      color: '#94a3b8',
+                    }}
+                  >
+                    {country.code}
+                  </span>
+                </div>
 
-                  return (
-                    <tr key={country.countryCode}>
-                      <td style={cellStyle}>
-                        <div
-                          style={{
-                            width: '34px',
-                            height: '34px',
-                            borderRadius: '50%',
-                            background: '#17283D',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 700,
-                            color:
-                              index < 3
-                                ? '#FFD54D'
-                                : '#9FB3C8',
-                          }}
-                        >
-                          {index + 1}
-                        </div>
-                      </td>
+                <span
+                  style={{
+                    fontWeight: 700,
+                    color: hasData ? '#ffffff' : '#64748b',
+                  }}
+                >
+                  {formatCurrency(country.debt)}
+                </span>
 
-                      <td style={cellStyle}>
-                        <Link
-                          href={`/country/${country.countryCode}`}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            color: '#FFFFFF',
-                            textDecoration: 'none',
-                            fontWeight: 700,
-                          }}
-                        >
-                          {flagUrl ? (
-                            <img
-                              src={flagUrl}
-                              alt={`${country.countryName} flag`}
-                              width="32"
-                              height="24"
-                              style={{
-                                width: '32px',
-                                height: '24px',
-                                objectFit: 'cover',
-                                borderRadius: '3px',
-                                border:
-                                  '1px solid #1E3550',
-                                flexShrink: 0,
-                              }}
-                            />
-                          ) : (
-                            <div
-                              style={{
-                                width: '32px',
-                                height: '24px',
-                                borderRadius: '3px',
-                                background: '#17283D',
-                                border:
-                                  '1px solid #1E3550',
-                                flexShrink: 0,
-                              }}
-                            />
-                          )}
+                <span style={{ color: '#94a3b8', fontSize: '13px' }}>
+                  {country.year ? country.year : 'N/A'}
+                </span>
 
-                          <div>
-                            <div>
-                              {countryMeta?.name ??
-                                country.countryName}
-                            </div>
-
-                            <div
-                              style={{
-                                marginTop: '3px',
-                                color: '#71869C',
-                                fontSize: '12px',
-                                fontWeight: 400,
-                              }}
-                            >
-                              {country.countryCode}
-                            </div>
-                          </div>
-                        </Link>
-                      </td>
-
-                      <td
-                        style={{
-                          ...cellStyle,
-                          fontSize: '18px',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {formatDebt(country.value)}
-                      </td>
-
-                      <td
-                        style={{
-                          ...cellStyle,
-                          color: '#9FB3C8',
-                        }}
-                      >
-                        {country.year}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <div
-          style={{
-            marginTop: '18px',
-            color: '#71869C',
-            fontSize: '13px',
-            lineHeight: 1.6,
-          }}
-        >
-          Source: World Bank — External debt stocks,
-          total (current US$), indicator DT.DOD.DECT.CD.
+                <div style={{ textAlign: 'right' }}>
+                  <Link
+                    href={`/country/${country.code}`}
+                    style={{
+                      fontSize: '12px',
+                      color: '#38bdf8',
+                      textDecoration: 'none',
+                      fontWeight: 600,
+                    }}
+                  >
+                    View →
+                  </Link>
+                </div>
+              </div>
+            )
+          })}
         </div>
       </div>
     </main>
   )
-}
-
-const headerStyle: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '16px 24px',
-  color: '#9FB3C8',
-  fontSize: '14px',
-  borderBottom: '1px solid #1E3550',
-  whiteSpace: 'nowrap',
-}
-
-const cellStyle: React.CSSProperties = {
-  padding: '18px 24px',
-  borderBottom: '1px solid #1E3550',
-}
-
-const languageToggleStyle: React.CSSProperties = {
-  color: '#9FB3C8', background: 'transparent', border: '1px solid #1E3550', borderRadius: '999px', padding: '8px 12px', cursor: 'pointer',
 }

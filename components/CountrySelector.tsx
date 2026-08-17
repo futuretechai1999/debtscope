@@ -4,6 +4,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { allCountries } from "../lib/countries";
 
+// Verified countries with active World Bank external debt records
+const POPULAR_REPORTING_CODES = [
+  'IND', 'CHN', 'BRA', 'MEX', 'ZAF', 'IDN', 'TUR', 'ARG', 'NGA', 'EGY', 'BGD', 'PAK'
+];
+
 export default function CountrySelector({
   selectedCodes,
 }: {
@@ -33,13 +38,15 @@ export default function CountrySelector({
     router.push(`/compare?countries=${updated.join(",")}`);
   };
 
-  const filteredCountries = allCountries
-    .filter(
-      (c) =>
-        c.name.toLowerCase().includes(search.toLowerCase()) ||
-        c.code3.toLowerCase().includes(search.toLowerCase())
-    )
-    .slice(0, 16);
+  const filteredCountries = search.trim()
+    ? allCountries
+        .filter(
+          (c) =>
+            c.name.toLowerCase().includes(search.toLowerCase()) ||
+            c.code3.toLowerCase().includes(search.toLowerCase())
+        )
+        .slice(0, 16)
+    : allCountries.filter((c) => POPULAR_REPORTING_CODES.includes(c.code3));
 
   return (
     <div
@@ -66,13 +73,13 @@ export default function CountrySelector({
             Select Countries to Compare
           </h3>
           <p style={{ color: "#94a3b8", fontSize: "12px", margin: "4px 0 0 0" }}>
-            Choose between 2 to 4 countries (Selected: {selected.length}/4)
+            Choose 2 to 4 countries with World Bank reporting (Selected: {selected.length}/4)
           </p>
         </div>
 
         <input
           type="text"
-          placeholder="Search country..."
+          placeholder="Search all 200+ countries..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
@@ -83,7 +90,7 @@ export default function CountrySelector({
             color: "#ffffff",
             fontSize: "12px",
             outline: "none",
-            width: "200px",
+            width: "220px",
           }}
         />
       </div>
