@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import DebtScopeLogo from '../components/DebtScopeLogo'
+import DebtTellerLogo from '../components/DebtScopeLogo'
 
 type Language = 'en' | 'hi'
 
@@ -800,7 +800,7 @@ export default function HomePage() {
       </section>
 
       <footer className="footer">
-        <DebtScopeLogo />
+        <DebtTellerLogo />
 
         <div className="footer-note">{t.footerNote}</div>
 

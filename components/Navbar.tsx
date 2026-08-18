@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react'
-import DebtScopeLogo from './DebtScopeLogo'
+import DebtTellerLogo from './DebtScopeLogo'
 import Link from 'next/link'
 
 export default function Navbar() {
@@ -35,7 +35,7 @@ export default function Navbar() {
         transition: 'background 0.25s ease',
       }}
     >
-      <DebtScopeLogo />
+      <DebtTellerLogo />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '22px' }}>
         <nav style={{ display: 'flex', gap: '20px', fontSize: '13px', fontWeight: 600 }}>

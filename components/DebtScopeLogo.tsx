@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export default function DebtScopeLogo() {
+export default function DebtTellerLogo() {
   return (
     <Link
       href="/"
@@ -86,7 +86,7 @@ export default function DebtScopeLogo() {
             WebkitTextFillColor: 'transparent',
           }}
         >
-          Scope
+          Teller
         </span>
       </span>
     </Link>
