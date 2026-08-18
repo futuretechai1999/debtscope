@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import DebtTellerLogo from '../components/DebtScopeLogo'
+import DebtTellerAI from '../components/DebtTellerAI'
 
 type Language = 'en' | 'hi'
 
@@ -126,12 +127,6 @@ const text = {
     aiTitle: 'Make the numbers easy to understand.',
     aiDescription:
       'Turn complex economic datasets into short, readable explanations — starting with English and Hindi.',
-    insightOfDay: 'INSIGHT OF THE DAY',
-    aiInsight:
-      "India's external debt moved higher year over year.",
-    aiPreview:
-      'This is preview copy for the interface. Verified World Bank data and source citations will replace it.',
-    explainHindi: 'Explain in हिन्दी',
 
     dataQuality: 'DATA QUALITY',
     dataAvailability: 'Data availability',
@@ -209,16 +204,10 @@ const text = {
     region: 'क्षेत्र',
     southAsia: 'दक्षिण एशिया',
 
-    debtScopeAI: 'DebtScope AI',
+    debtScopeAI: 'DebtTeller AI',
     aiTitle: 'आंकड़ों को आसानी से समझें।',
     aiDescription:
       'जटिल आर्थिक आंकड़ों को छोटी और आसान भाषा में समझें — शुरुआत English और Hindi से।',
-    insightOfDay: 'आज की जानकारी',
-    aiInsight:
-      'भारत का बाहरी ऋण पिछले वर्ष की तुलना में बढ़ा।',
-    aiPreview:
-      'यह इंटरफेस के लिए पूर्वावलोकन टेक्स्ट है। सत्यापित World Bank डेटा और स्रोत जल्द जोड़े जाएंगे।',
-    explainHindi: 'हिन्दी में समझाएँ',
 
     dataQuality: 'डेटा गुणवत्ता',
     dataAvailability: 'डेटा उपलब्धता',
@@ -412,7 +401,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="stats-grid" aria-label="DebtScope overview">
+      <section className="stats-grid" aria-label="DebtTeller overview">
         <article className="stat-card stat-primary">
           <span className="card-label">{t.indiaDebt}</span>
           <strong>$620.7B</strong>
@@ -498,10 +487,10 @@ export default function HomePage() {
                 <defs>
                   <linearGradient
                     id="chartFill"
-                    x1="0"
-                    x2="0"
-                    y1="0"
-                    y2="1"
+                    x1="0%"
+                    x2="0%"
+                    y1="0%"
+                    y2="100%"
                   >
                     <stop
                       offset="0%"
@@ -563,19 +552,8 @@ export default function HomePage() {
           <h2>{t.aiTitle}</h2>
           <p>{t.aiDescription}</p>
 
-          <div className="ai-card">
-            <div className="ai-card-top">
-              <span>{t.insightOfDay}</span>
-              <span>{language === 'en' ? 'EN' : 'HI'}</span>
-            </div>
-
-            <strong>{t.aiInsight}</strong>
-            <p>{t.aiPreview}</p>
-
-            <button type="button" className="ai-link">
-              {t.explainHindi} <ArrowUpRight />
-            </button>
-          </div>
+          {/* AI Box Component */}
+          <DebtTellerAI />
         </article>
       </section>
 
