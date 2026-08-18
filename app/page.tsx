@@ -122,7 +122,7 @@ const text = {
     region: 'Region',
     southAsia: 'South Asia',
 
-    debtScopeAI: 'DebtScope AI',
+    debtScopeAI: 'DebtTeller AI',
     aiTitle: 'Make the numbers easy to understand.',
     aiDescription:
       'Turn complex economic datasets into short, readable explanations — starting with English and Hindi.',
