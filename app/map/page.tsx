@@ -87,4 +87,5 @@ export default async function MapPage() {
       </div>
     </main>
   )
-}
+} 
+// forced updates
