@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 export async function POST(req: Request) {
   try {
     const { debtData, language } = await req.json()
-    const apiKey = process.env.GEMINI_API_KEY?.trim()
+    const apiKey = process.env.GEMINI_API_KEY
 
     if (!apiKey) {
       return NextResponse.json({ error: 'API key is missing' }, { status: 500 })
@@ -11,18 +11,19 @@ export async function POST(req: Request) {
 
     const prompt = `You are a financial expert. Explain this external debt data in 2 short, simple sentences. Keep it easy to understand for everyday people. Data: "${debtData}". The output language must strictly be ${language}.`
 
-    // Determine URL and Headers based on key format
-    const isBearer = apiKey.startsWith('AQ.')
-    const url = isBearer
-      ? 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
-      : `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`
-
+    // Agar standard AIzaSy key hai toh query param chalega, 
+    // naye AQ.Ab format ke liye Authorization Bearer header aur x-goog-api-key dono support karte hain
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }
 
-    if (isBearer) {
+    let url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
+
+    if (apiKey.startsWith('AIzaSy')) {
+      url += `?key=${apiKey}`
+    } else {
       headers['Authorization'] = `Bearer ${apiKey}`
+      headers['x-goog-api-key'] = apiKey
     }
 
     const response = await fetch(url, {
@@ -41,10 +42,14 @@ export async function POST(req: Request) {
 
     if (!response.ok) {
       console.error('Gemini API Error:', data)
-      return NextResponse.json({ error: data.error?.message || 'API request failed' }, { status: response.status })
+      return NextResponse.json(
+        { error: data.error?.message || 'API request failed' },
+        { status: response.status }
+      )
     }
 
-    const insight = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.'
+    const insight =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.'
 
     return NextResponse.json({ insight })
   } catch (error: any) {
