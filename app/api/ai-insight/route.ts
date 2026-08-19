@@ -1,28 +1,45 @@
-import { NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-// API Key ko .env.local se uthana
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
   try {
-    const { debtData, language } = await req.json();
-    
-    // Gemini model ko call karna
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const { debtData, language } = await req.json()
+    const apiKey = process.env.GEMINI_API_KEY
 
-    // AI ko instruction dena
-    const prompt = `You are a helpful financial expert. Look at this data: "${debtData}". 
-    Translate and explain this very simply in ${language} language. 
-    Keep it short, just 1 or 2 sentences. Make it easy for a normal person to understand.`;
+    if (!apiKey) {
+      return NextResponse.json({ error: 'API key is missing' }, { status: 500 })
+    }
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const prompt = `You are a financial expert. Explain this external debt data in 2 short, simple sentences. Keep it easy to understand for everyday people. Data: "${debtData}". The output language must strictly be ${language}.`
 
-    return NextResponse.json({ insight: text });
-  } catch (error) {
-    console.error("AI Error:", error);
-    return NextResponse.json({ error: 'Failed to generate AI insight' }, { status: 500 });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: prompt }],
+            },
+          ],
+        }),
+      }
+    )
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      console.error('Gemini API Error:', data)
+      return NextResponse.json({ error: data.error?.message || 'API request failed' }, { status: response.status })
+    }
+
+    const insight = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.'
+
+    return NextResponse.json({ insight })
+  } catch (error: any) {
+    console.error('Server error:', error)
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 })
   }
 }
