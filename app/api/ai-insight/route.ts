@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 export async function POST(req: Request) {
   try {
     const { debtData, language } = await req.json()
-    const apiKey = process.env.GEMINI_API_KEY
+    const apiKey = process.env.GEMINI_API_KEY?.trim()
 
     if (!apiKey) {
       return NextResponse.json({ error: 'API key is missing' }, { status: 500 })
@@ -11,22 +11,31 @@ export async function POST(req: Request) {
 
     const prompt = `You are a financial expert. Explain this external debt data in 2 short, simple sentences. Keep it easy to understand for everyday people. Data: "${debtData}". The output language must strictly be ${language}.`
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }],
-            },
-          ],
-        }),
-      }
-    )
+    // Determine URL and Headers based on key format
+    const isBearer = apiKey.startsWith('AQ.')
+    const url = isBearer
+      ? 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
+      : `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+
+    if (isBearer) {
+      headers['Authorization'] = `Bearer ${apiKey}`
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: prompt }],
+          },
+        ],
+      }),
+    })
 
     const data = await response.json()
 
