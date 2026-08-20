@@ -2,37 +2,27 @@ import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
   try {
-    const { debtData, language } = await req.json()
+    const { debtData } = await req.json()
     const apiKey = process.env.GEMINI_API_KEY
 
     if (!apiKey) {
-      return NextResponse.json({ error: 'API key is missing' }, { status: 500 })
+      return NextResponse.json({ error: 'API Key missing on server' }, { status: 500 })
     }
 
-    const prompt = `You are a financial expert. Explain this external debt data in 2 short, simple sentences. Keep it easy to understand for everyday people. Data: "${debtData}". The output language must strictly be ${language}.`
+    const promptText = `Aap ek financial expert hain. Neeche diye gaye debt data ko aasan aur saral Hindi bhasha mein sirf 2 chhote sentences mein explain karein. Data: ${debtData || 'India external debt is $620.7 Billion'}`
 
-    // Agar standard AIzaSy key hai toh query param chalega, 
-    // naye AQ.Ab format ke liye Authorization Bearer header aur x-goog-api-key dono support karte hain
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    }
-
-    let url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
-
-    if (apiKey.startsWith('AIzaSy')) {
-      url += `?key=${apiKey}`
-    } else {
-      headers['Authorization'] = `Bearer ${apiKey}`
-      headers['x-goog-api-key'] = apiKey
-    }
+    // Google Gemini 1.5 Flash endpoint
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`
 
     const response = await fetch(url, {
       method: 'POST',
-      headers,
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
         contents: [
           {
-            parts: [{ text: prompt }],
+            parts: [{ text: promptText }],
           },
         ],
       }),
@@ -41,19 +31,23 @@ export async function POST(req: Request) {
     const data = await response.json()
 
     if (!response.ok) {
-      console.error('Gemini API Error:', data)
+      console.error('Google API Error Response:', data)
       return NextResponse.json(
-        { error: data.error?.message || 'API request failed' },
+        { error: data?.error?.message || 'Google API returned an error' },
         { status: response.status }
       )
     }
 
     const insight =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.'
+      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      'भारत का बाहरी ऋण पिछले वर्ष की तुलना में बढ़ा है।'
 
-    return NextResponse.json({ insight })
+    return NextResponse.json({ insight: insight.trim() })
   } catch (error: any) {
-    console.error('Server error:', error)
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 })
+    console.error('Server Catch Error:', error)
+    return NextResponse.json(
+      { error: error?.message || 'Internal server error' },
+      { status: 500 }
+    )
   }
 }
