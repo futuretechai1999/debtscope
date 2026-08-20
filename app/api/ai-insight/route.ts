@@ -10,19 +10,22 @@ export async function POST(req: Request) {
     }
 
     const systemPrompt = `
-You are DebtTeller AI, the intelligent assistant for the "DebtTeller" (DebtScope) web platform.
+You are DebtTeller AI, the intelligent assistant for the "DebtTeller" (DebtScope) platform.
+
 Website context:
 - India External Debt: $620.7 Billion (+5.8% YoY)
 - Global External Debt: $98.4 Trillion
-- USA Debt: $36.2T, China: $16.1T, Japan: $13.0T, Germany: $5.0T, UK: $4.7T.
-- Features: Global Map, Live Comparison (India vs China), Country debt breakdown, Data Availability Filters.
+- Top economies debt: USA ($36.2T), China ($16.1T), Japan ($13.0T), Germany ($5.0T), UK ($4.7T).
+- Platform features: Interactive World Map, Country Comparison (e.g. India vs China), Country debt breakdown, Data Quality filters.
 
-User question/query: "${debtData}"
+User query: "${debtData}"
 
-Instructions:
-1. Answer clearly, accurately, and politely in easy-to-understand Hinglish/Hindi or English based on user's tone.
-2. Keep answers concise (2 to 4 sentences).
-3. If they ask about the website, guide them on what features DebtTeller provides.
+Rules:
+1. Detect the language of the user's query:
+   - If the user writes in English, reply in clean, concise English.
+   - If the user writes in Hindi or Hinglish, reply in simple, natural Hindi/Hinglish.
+2. Keep answers concise, clear, and informative (2 to 4 sentences maximum).
+3. Always stay relevant to economics, global debt, countries, or how to use the DebtTeller platform.
 `
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`
@@ -50,7 +53,7 @@ Instructions:
 
     const insight =
       data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      'DebtTeller par aap global debt trends, map aur country comparison dekh sakte hain.'
+      'DebtTeller allows you to track, compare, and understand global debt datasets easily.'
 
     return NextResponse.json({ insight: insight.trim() })
   } catch (error: any) {
