@@ -6,17 +6,17 @@ export default function DebtTellerAI() {
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([
     {
       role: 'assistant',
-      content: 'Namaste! Main DebtTeller AI hoon. Aap mujhse kisi bhi desh ke external debt, comparison ya is platform ke baare mein kuch bhi pooch sakte hain.',
+      content: 'Hello! I am DebtTeller AI. Ask me about global external debt, country comparisons, or how to navigate this platform.',
     },
   ])
   const [inputQuery, setInputQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
   const quickPrompts = [
+    "What is US total debt?",
     "India ka kul debt kitna hai?",
-    "India vs China debt compare karo",
-    "DebtScope/DebtTeller kya kaam karta hai?",
-    "Debt-to-GDP ratio ka kya matlab hota hai?",
+    "India vs China debt compare",
+    "Debt-to-GDP ratio meaning",
   ]
 
   const handleSend = async (queryText?: string) => {
@@ -32,31 +32,27 @@ export default function DebtTellerAI() {
       const res = await fetch('/api/ai-insight', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          debtData: textToSend,
-        }),
+        body: JSON.stringify({ debtData: textToSend }),
       })
 
       const data = await res.json()
-
-      if (res.ok && data.insight) {
+      if (data && data.insight) {
         setMessages([...newMessages, { role: 'assistant', content: data.insight }])
       } else {
         setMessages([
           ...newMessages,
           {
             role: 'assistant',
-            content: 'Maaf kijiye, main abhi response process nahi kar pa raha hoon. Kripya dobara try karein.',
+            content: 'DebtTeller provides verified economic debt data. Please check the overview rankings above.',
           },
         ])
       }
-    } catch (err) {
-      console.error(err)
+    } catch {
       setMessages([
         ...newMessages,
         {
           role: 'assistant',
-          content: 'Server connection mein samasya aayi. Kripya apna internet ya backend check karein.',
+          content: 'Unable to connect right now. Please try again in a moment.',
         },
       ])
     } finally {
@@ -68,33 +64,43 @@ export default function DebtTellerAI() {
     <div
       style={{
         background: 'var(--panel-strong)',
-        padding: '24px',
+        padding: '20px',
         borderRadius: '16px',
         border: '1px solid var(--border)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '16px',
+        gap: '14px',
+        width: '100%',
+        boxSizing: 'border-box',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: '13px', fontWeight: '700', color: '#06b6d4', letterSpacing: '1px' }}>
-          ✦ DEBTTELLER AI INTELLIGENCE
+        <div style={{ fontSize: '13px', fontWeight: '700', color: '#06b6d4', letterSpacing: '0.8px' }}>
+          ✦ DEBTTELLER AI
         </div>
-        <span style={{ fontSize: '12px', color: 'var(--muted)', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px' }}>
+        <span
+          style={{
+            fontSize: '11px',
+            color: 'var(--muted)',
+            background: 'rgba(255,255,255,0.06)',
+            padding: '3px 8px',
+            borderRadius: '12px',
+          }}
+        >
           Live Q&A
         </span>
       </div>
 
-      {/* Chat Messages Window */}
+      {/* Clean Chat Window with slim scrollbar */}
       <div
         style={{
-          minHeight: '180px',
-          maxHeight: '260px',
+          maxHeight: '220px',
           overflowY: 'auto',
           display: 'flex',
           flexDirection: 'column',
-          gap: '12px',
-          paddingRight: '6px',
+          gap: '10px',
+          paddingRight: '4px',
+          scrollbarWidth: 'thin',
         }}
       >
         {messages.map((msg, index) => (
@@ -102,29 +108,30 @@ export default function DebtTellerAI() {
             key={index}
             style={{
               alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-              background: msg.role === 'user' ? '#06b6d4' : 'rgba(255,255,255,0.05)',
+              background: msg.role === 'user' ? '#06b6d4' : 'rgba(255,255,255,0.04)',
               color: msg.role === 'user' ? '#000' : 'var(--text)',
-              padding: '10px 14px',
-              borderRadius: '12px',
-              maxWidth: '85%',
-              fontSize: '14px',
-              lineHeight: '1.5',
+              padding: '8px 12px',
+              borderRadius: '10px',
+              maxWidth: '90%',
+              fontSize: '13px',
+              lineHeight: '1.45',
               fontWeight: msg.role === 'user' ? '600' : '400',
               border: msg.role === 'user' ? 'none' : '1px solid var(--border)',
+              wordBreak: 'break-word',
             }}
           >
             {msg.content}
           </div>
         ))}
         {isLoading && (
-          <div style={{ alignSelf: 'flex-start', fontSize: '13px', color: '#06b6d4' }}>
-            DebtTeller AI soch raha hai...
+          <div style={{ alignSelf: 'flex-start', fontSize: '12px', color: '#06b6d4' }}>
+            DebtTeller AI is typing...
           </div>
         )}
       </div>
 
-      {/* Quick Suggestion Chips */}
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+      {/* Chips */}
+      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
         {quickPrompts.map((prompt, i) => (
           <button
             key={i}
@@ -133,12 +140,11 @@ export default function DebtTellerAI() {
             style={{
               background: 'rgba(255,255,255,0.03)',
               border: '1px solid var(--border)',
-              borderRadius: '20px',
-              padding: '4px 10px',
+              borderRadius: '16px',
+              padding: '4px 9px',
               fontSize: '11px',
               color: 'var(--muted)',
               cursor: 'pointer',
-              transition: 'all 0.2s',
             }}
           >
             {prompt}
@@ -146,27 +152,27 @@ export default function DebtTellerAI() {
         ))}
       </div>
 
-      {/* Input Box */}
+      {/* Input */}
       <form
         onSubmit={(e) => {
           e.preventDefault()
           handleSend()
         }}
-        style={{ display: 'flex', gap: '8px', marginTop: '4px' }}
+        style={{ display: 'flex', gap: '8px' }}
       >
         <input
           type="text"
           value={inputQuery}
           onChange={(e) => setInputQuery(e.target.value)}
-          placeholder="Website ya debt ke baare mein kuch bhi poochein..."
+          placeholder="Ask anything about debt or platform..."
           style={{
             flex: 1,
             background: 'var(--bg)',
             border: '1px solid var(--border)',
-            padding: '10px 14px',
+            padding: '8px 12px',
             borderRadius: '8px',
             color: 'var(--text)',
-            fontSize: '14px',
+            fontSize: '13px',
             outline: 'none',
           }}
         />
@@ -177,14 +183,14 @@ export default function DebtTellerAI() {
             background: '#06b6d4',
             color: '#000',
             border: 'none',
-            padding: '0 16px',
+            padding: '0 14px',
             borderRadius: '8px',
             fontWeight: '700',
             cursor: isLoading || !inputQuery.trim() ? 'not-allowed' : 'pointer',
-            fontSize: '14px',
+            fontSize: '13px',
           }}
         >
-          Poochhein
+          Ask
         </button>
       </form>
     </div>
