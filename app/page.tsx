@@ -1,5 +1,5 @@
 'use client'
-
+import ReviewSection from '../components/ReviewSection'
 import { useMemo, useState } from 'react'
 import DebtTellerLogo from '../components/DebtScopeLogo'
 import DebtTellerAI from '../components/DebtTellerAI'
@@ -776,7 +776,7 @@ export default function HomePage() {
           </a>
         </article>
       </section>
-
+<ReviewSection />
       <footer className="footer">
         <DebtTellerLogo />
 
