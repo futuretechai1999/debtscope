@@ -1,3 +1,4 @@
+<meta name="google-site-verification" content="zkLSy1lhGjGIe0IHgp-fbpQTgIM3-Qi24MbN8AB-rRM" />
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata } from 'next'
 import './globals.css'
