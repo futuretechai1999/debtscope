@@ -11,7 +11,7 @@ const countries = [
     name: 'India',
     code: 'IND',
     flag: '🇮🇳',
-    debt: '$620.7B',
+    debt: '$716.5B',
     change: '+5.8%',
     coverage: 'Full',
     source: 'World Bank',
@@ -404,7 +404,7 @@ export default function HomePage() {
       <section className="stats-grid" aria-label="DebtTeller overview">
         <article className="stat-card stat-primary">
           <span className="card-label">{t.indiaDebt}</span>
-          <strong>$620.7B</strong>
+          <strong>$716.5B</strong>
           <div className="stat-foot">
             <span className="trend-up">+5.8% YoY</span>
             <span>{t.previewData}</span>
@@ -464,7 +464,7 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="big-number">$620.7B</div>
+              <div className="big-number">$716.5B</div>
 
               <div className="big-number-meta">
                 <span className="trend-up">+5.8%</span>
@@ -756,7 +756,7 @@ export default function HomePage() {
             <div className="compare-country">
               <span>🇮🇳</span>
               <strong>India</strong>
-              <small>$620.7B</small>
+              <small>$716.5B</small>
             </div>
 
             <div className="vs-badge">VS</div>

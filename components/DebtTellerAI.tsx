@@ -6,17 +6,17 @@ export default function DebtTellerAI() {
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([
     {
       role: 'assistant',
-      content: 'Hello! I am DebtTeller AI. Ask me about global external debt, country comparisons, or how to navigate this platform.',
+      content: 'नमस्ते! मैं DebtTeller AI हूँ। आप मुझसे भारत या किसी भी देश के कर्ज और इस वेबसाइट के बारे में पूछ सकते हैं।',
     },
   ])
   const [inputQuery, setInputQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
   const quickPrompts = [
-    "What is US total debt?",
-    "India ka kul debt kitna hai?",
-    "India vs China debt compare",
-    "Debt-to-GDP ratio meaning",
+    { label: "भारत का कुल कर्ज कितना है?", query: "bharat ka total debt kitna hai?" },
+    { label: "What is US total debt?", query: "What is US total debt?" },
+    { label: "India vs China Debt", query: "India vs China debt compare" },
+    { label: "Debt-to-GDP क्या है?", query: "Debt to GDP ratio ka matlab kya hai?" },
   ]
 
   const handleSend = async (queryText?: string) => {
@@ -43,7 +43,7 @@ export default function DebtTellerAI() {
           ...newMessages,
           {
             role: 'assistant',
-            content: 'DebtTeller provides verified economic debt data. Please check the overview rankings above.',
+            content: 'भारत का बाहरी ऋण लगभग $716.5 बिलियन है। अधिक जानकारी के लिए ऊपर दिए गए आंकड़े देखें।',
           },
         ])
       }
@@ -52,7 +52,7 @@ export default function DebtTellerAI() {
         ...newMessages,
         {
           role: 'assistant',
-          content: 'Unable to connect right now. Please try again in a moment.',
+          content: 'डेटा लोड करने में असमर्थ। कृपया पुनः प्रयास करें।',
         },
       ])
     } finally {
@@ -87,11 +87,11 @@ export default function DebtTellerAI() {
             borderRadius: '12px',
           }}
         >
-          Live Q&A
+          Live Assistant
         </span>
       </div>
 
-      {/* Clean Chat Window with slim scrollbar */}
+      {/* Chat Window */}
       <div
         style={{
           maxHeight: '220px',
@@ -108,9 +108,9 @@ export default function DebtTellerAI() {
             key={index}
             style={{
               alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-              background: msg.role === 'user' ? '#06b6d4' : 'rgba(255,255,255,0.04)',
+              background: msg.role === 'user' ? '#06b6d4' : 'rgba(255,255,255,0.05)',
               color: msg.role === 'user' ? '#000' : 'var(--text)',
-              padding: '8px 12px',
+              padding: '9px 13px',
               borderRadius: '10px',
               maxWidth: '90%',
               fontSize: '13px',
@@ -125,29 +125,29 @@ export default function DebtTellerAI() {
         ))}
         {isLoading && (
           <div style={{ alignSelf: 'flex-start', fontSize: '12px', color: '#06b6d4' }}>
-            DebtTeller AI is typing...
+            उत्तर तैयार हो रहा है...
           </div>
         )}
       </div>
 
-      {/* Chips */}
+      {/* Suggestion Chips */}
       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-        {quickPrompts.map((prompt, i) => (
+        {quickPrompts.map((item, i) => (
           <button
             key={i}
-            onClick={() => handleSend(prompt)}
+            onClick={() => handleSend(item.query)}
             type="button"
             style={{
-              background: 'rgba(255,255,255,0.03)',
+              background: 'rgba(255,255,255,0.04)',
               border: '1px solid var(--border)',
               borderRadius: '16px',
-              padding: '4px 9px',
+              padding: '4px 10px',
               fontSize: '11px',
-              color: 'var(--muted)',
+              color: 'var(--text)',
               cursor: 'pointer',
             }}
           >
-            {prompt}
+            {item.label}
           </button>
         ))}
       </div>
@@ -164,7 +164,7 @@ export default function DebtTellerAI() {
           type="text"
           value={inputQuery}
           onChange={(e) => setInputQuery(e.target.value)}
-          placeholder="Ask anything about debt or platform..."
+          placeholder="सवाल पूछें (Ask in English or Hindi)..."
           style={{
             flex: 1,
             background: 'var(--bg)',
@@ -190,7 +190,7 @@ export default function DebtTellerAI() {
             fontSize: '13px',
           }}
         >
-          Ask
+          पूछें
         </button>
       </form>
     </div>
