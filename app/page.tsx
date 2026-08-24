@@ -1,6 +1,7 @@
 'use client'
-import ReviewSection from '../components/ReviewSection'
+
 import { useMemo, useState } from 'react'
+import ReviewSection from '../components/ReviewSection'
 import DebtTellerLogo from '../components/DebtScopeLogo'
 import DebtTellerAI from '../components/DebtTellerAI'
 
@@ -552,8 +553,8 @@ export default function HomePage() {
           <h2>{t.aiTitle}</h2>
           <p>{t.aiDescription}</p>
 
-          {/* AI Box Component */}
-          <DebtTellerAI />
+          {/* AI Box with Language Sync */}
+          <DebtTellerAI language={language} />
         </article>
       </section>
 
@@ -776,7 +777,10 @@ export default function HomePage() {
           </a>
         </article>
       </section>
-<ReviewSection />
+
+      {/* Community Review Section */}
+      <ReviewSection />
+
       <footer className="footer">
         <DebtTellerLogo />
 

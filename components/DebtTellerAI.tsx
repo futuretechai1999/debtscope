@@ -1,23 +1,54 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
-export default function DebtTellerAI() {
+interface DebtTellerAIProps {
+  language?: 'en' | 'hi'
+}
+
+export default function DebtTellerAI({ language = 'en' }: DebtTellerAIProps) {
+  const isHindi = language === 'hi'
+
+  const initialGreeting = isHindi
+    ? 'नमस्ते! मैं DebtTeller AI हूँ। आप मुझसे भारत या किसी भी देश के कर्ज और इस वेबसाइट के बारे में पूछ सकते हैं।'
+    : 'Hello! I am DebtTeller AI. Ask me about global external debt, country comparisons, or this platform.'
+
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([
     {
       role: 'assistant',
-      content: 'नमस्ते! मैं DebtTeller AI हूँ। आप मुझसे भारत या किसी भी देश के कर्ज और इस वेबसाइट के बारे में पूछ सकते हैं।',
+      content: initialGreeting,
     },
   ])
+
+  // Language switch hone par initial welcome message update hoga
+  useEffect(() => {
+    setMessages([
+      {
+        role: 'assistant',
+        content: isHindi
+          ? 'नमस्ते! मैं DebtTeller AI हूँ। आप मुझसे भारत या किसी भी देश के कर्ज और इस वेबसाइट के बारे में पूछ सकते हैं।'
+          : 'Hello! I am DebtTeller AI. Ask me about global external debt, country comparisons, or this platform.',
+      },
+    ])
+  }, [language, isHindi])
+
   const [inputQuery, setInputQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  const quickPrompts = [
-    { label: "भारत का कुल कर्ज कितना है?", query: "bharat ka total debt kitna hai?" },
-    { label: "What is US total debt?", query: "What is US total debt?" },
-    { label: "India vs China Debt", query: "India vs China debt compare" },
-    { label: "Debt-to-GDP क्या है?", query: "Debt to GDP ratio ka matlab kya hai?" },
-  ]
+  // English & Hindi specific suggestion chips
+  const quickPrompts = isHindi
+    ? [
+        { label: 'भारत का कुल कर्ज कितना है?', query: 'bharat ka total debt kitna hai?' },
+        { label: 'अमेरिका का कर्ज कितना है?', query: 'America ka external debt kitna hai?' },
+        { label: 'भारत बनाम चीन तुलना', query: 'India vs China debt compare' },
+        { label: 'Debt-to-GDP क्या है?', query: 'Debt to GDP ratio ka matlab kya hai?' },
+      ]
+    : [
+        { label: "What is India's total debt?", query: "What is India's total external debt?" },
+        { label: 'What is US total debt?', query: 'What is US total debt?' },
+        { label: 'India vs China Debt', query: 'India vs China debt compare' },
+        { label: 'Debt-to-GDP meaning', query: 'What is Debt-to-GDP ratio?' },
+      ]
 
   const handleSend = async (queryText?: string) => {
     const textToSend = queryText || inputQuery
@@ -43,7 +74,9 @@ export default function DebtTellerAI() {
           ...newMessages,
           {
             role: 'assistant',
-            content: 'भारत का बाहरी ऋण लगभग $716.5 बिलियन है। अधिक जानकारी के लिए ऊपर दिए गए आंकड़े देखें।',
+            content: isHindi
+              ? 'भारत का बाहरी ऋण लगभग $716.5 बिलियन है। अधिक जानकारी के लिए डैशबोर्ड देखें।'
+              : "India's external debt stands at approximately $716.5 Billion. Explore the dashboard above for more details.",
           },
         ])
       }
@@ -52,7 +85,9 @@ export default function DebtTellerAI() {
         ...newMessages,
         {
           role: 'assistant',
-          content: 'डेटा लोड करने में असमर्थ। कृपया पुनः प्रयास करें।',
+          content: isHindi
+            ? 'डेटा लोड करने में असमर्थ। कृपया पुनः प्रयास करें।'
+            : 'Unable to connect to AI server. Please try again.',
         },
       ])
     } finally {
@@ -87,7 +122,7 @@ export default function DebtTellerAI() {
             borderRadius: '12px',
           }}
         >
-          Live Assistant
+          {isHindi ? 'लाइव सहायक' : 'Live Assistant'}
         </span>
       </div>
 
@@ -125,7 +160,7 @@ export default function DebtTellerAI() {
         ))}
         {isLoading && (
           <div style={{ alignSelf: 'flex-start', fontSize: '12px', color: '#06b6d4' }}>
-            उत्तर तैयार हो रहा है...
+            {isHindi ? 'उत्तर तैयार हो रहा है...' : 'DebtTeller AI is typing...'}
           </div>
         )}
       </div>
@@ -152,7 +187,7 @@ export default function DebtTellerAI() {
         ))}
       </div>
 
-      {/* Input */}
+      {/* Input Form */}
       <form
         onSubmit={(e) => {
           e.preventDefault()
@@ -164,7 +199,11 @@ export default function DebtTellerAI() {
           type="text"
           value={inputQuery}
           onChange={(e) => setInputQuery(e.target.value)}
-          placeholder="सवाल पूछें (Ask in English or Hindi)..."
+          placeholder={
+            isHindi
+              ? 'ऋण या वेबसाइट के बारे में पूछें...'
+              : 'Ask anything about debt or platform...'
+          }
           style={{
             flex: 1,
             background: 'var(--bg)',
@@ -183,14 +222,14 @@ export default function DebtTellerAI() {
             background: '#06b6d4',
             color: '#000',
             border: 'none',
-            padding: '0 14px',
+            padding: '0 16px',
             borderRadius: '8px',
             fontWeight: '700',
             cursor: isLoading || !inputQuery.trim() ? 'not-allowed' : 'pointer',
             fontSize: '13px',
           }}
         >
-          पूछें
+          {isHindi ? 'पूछें' : 'Ask'}
         </button>
       </form>
     </div>
